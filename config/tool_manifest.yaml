@@ -1,0 +1,1305 @@
+tool:
+  id: audion_docflow
+  name: Audion DocFlow
+  category: Documents
+  version: 1.2.0
+paths:
+  input: input
+  output: output
+  logs: logs
+  workspace: workspace
+  config: config
+  release: release
+ui:
+  title: Audion DocFlow
+  host: 127.0.0.1
+  port: 8080
+  native: false
+  reload: false
+  open_browser: true
+operation_groups:
+- id: audit_rules
+  title: Rules audit
+  title_ru: АУДИТ ПРАВИЛ
+  description: Deterministic project audit rules, anchors, and approval workflow.
+  description_ru: Детерминированные правила аудита, якоря и маршрут одобрения правок.
+  children:
+  - id: docx_audit_processor
+    title: Audit processor
+    title_ru: Аудит правил DOCX
+    description: Scan and safely fix deterministic corporate writing rules.
+    description_ru: 'Найти и безопасно исправить правила аудита: кв. м, №, %, градусы, даты и похожие случаи.'
+    service: system_core.services.office_service:docx_audit_processor
+    kind: safe
+    fields:
+    - id: write_audit_anchors
+      type: checkbox
+      label: Write audit anchors
+      label_ru: Создать DOCX с якорями
+      default: true
+      span: full
+      hint_ru: В output/audit_annotated создаются копии *__annotated.docx. Якоря показывают места правил до исправления.
+    - id: apply_fixes
+      type: checkbox
+      label: Apply safe fixes
+      label_ru: Применить безопасные правки
+      default: false
+    - id: dry_run
+      type: checkbox
+      label: Dry-run
+      label_ru: Пробный запуск без записи DOCX
+      default: false
+  - id: docx_audit_strip_anchors
+    title: Remove DOCX audit anchors
+    title_ru: Снять якоря DOCX
+    description: Remove service anchors from annotated DOCX after user-approved audit fixes.
+    description_ru: Удалить служебные якоря ⟦...⟧ из _annotated DOCX после внесения и одобрения правок аудита.
+    service: system_core.services.office_service:docx_audit_strip_anchors
+    kind: safe
+    fields:
+    - id: audit_anchor_docx
+      type: file
+      label: DOCX with anchors
+      label_ru: DOCX с якорями
+      extensions: .docx
+      span: full
+      default: ''
+      hint_ru: Если выбрать файл, якоря снимаются только с него. Если оставить пустым, обрабатываются все *__annotated.docx из input.
+    - id: strip_all_docx
+      type: checkbox
+      label: All DOCX
+      label_ru: Все DOCX, не только _annotated
+      default: false
+      span: full
+- id: processors
+  title: Styles and hygiene
+  title_ru: СТИЛИ И ГИГИЕНА
+  description: Core DOCX processors for styles and text hygiene.
+  description_ru: 'Ключевые DOCX-процедуры: стили и текстовая гигиена.'
+  children:
+  - id: docx_deep_hygiene
+    title: Text hygiene workbench
+    title_ru: Гигиена текста
+    description: Run text hygiene alone or with document anomaly checks in one operation.
+    description_ru: Запустить старую текстовую гигиену и при необходимости подключить аномалии документа вторым проходом.
+    service: system_core.services.office_service:docx_deep_hygiene
+    kind: safe
+    fields:
+    - id: deep_hygiene_mode
+      type: radio
+      label: Mode
+      label_ru: Режим
+      default: scan
+      field_group: hygiene_run
+      group_title_ru: Запуск
+      group_description_ru: Проверка строит отчёты без изменения документов; корректировка пишет только копии.
+      hint_ru: Проверка ничего не меняет. Корректировка применяет безопасные правки к копиям DOCX.
+      options:
+      - value: scan
+        label: Scan
+        label_ru: Проверка
+      - value: fix
+        label: Fix
+        label_ru: Корректировка
+    - id: deep_hygiene_dot_spacing
+      type: checkbox
+      label: Dot spacing
+      label_ru: Пробел после точки (эвристика)
+      default: false
+      field_group: hygiene_run
+      group_title: Text hygiene parameters
+      group_title_ru: Параметры текстовой гигиены
+      hint_ru: Расширенная эвристика, выключена по умолчанию. Общее правило пропускает сокращения и единицы вроде кв.м, куб.м, руб., г.Тюмень, ул.Ленина; их должны находить и исправлять правила аудита или морфология с учётом контекста.
+    - id: deep_hygiene_remove_strikethrough
+      type: checkbox
+      label: Remove strikethrough text
+      label_ru: Удалять зачёркнутый текст
+      default: false
+      field_group: hygiene_run
+      group_title: Text hygiene parameters
+      group_title_ru: Параметры текстовой гигиены
+      hint_ru: Меняет содержание документа, поэтому выключено по умолчанию. Включайте только когда зачёркнутый текст считается мусором, а не редакторской правкой.
+    - id: deep_hygiene_include_audit
+      type: checkbox
+      label: Include audit rules
+      label_ru: Правила аудита, проход 1
+      default: true
+      field_group: hygiene_run
+      group_title: Text hygiene parameters
+      group_title_ru: Параметры текстовой гигиены
+      hint_ru: 'Включает: кв. м, куб. м, единицы измерения, №, %, градусы, даты с г. и похожие детерминированные правила. В проверке пишет отчёт; в корректировке применяет безопасные правки к копиям после текстовой гигиены.'
+    - id: deep_hygiene_include_anomalies
+      type: checkbox
+      label: Include document anomalies
+      label_ru: Аномалии документа в одном проходе
+      default: false
+      field_group: hygiene_run
+      group_title: Text hygiene parameters
+      group_title_ru: Параметры текстовой гигиены
+      hint_ru: Запускает второй проход по форматным аномалиям. Текстовая гигиена отвечает за видимый текст, аномалии - за структуру и форматирование; в корректировке аномалии работают поверх копий, уже исправленных текстовой гигиеной.
+  - id: docx_style_scan
+    title: 'Style processing: scan'
+    title_ru: Проверка стилей DOCX
+    description: Find headings, captions, TOC markers, sections, and style consistency issues.
+    description_ru: Найти заголовки, названия таблиц/рисунков, оглавление, секции и стилевые проблемы.
+    service: system_core.services.office_service:docx_style_scan
+    kind: safe
+    fields:
+    - id: reference_docx
+      type: text
+      label: Reference DOCX
+      label_ru: Эталон стилей DOCX
+      default: ''
+      field_group: style_reference
+      group_title_ru: Эталон
+      group_description_ru: Необязательный DOCX с вручную назначенными нужными стилями.
+      hint_ru: 'Необязательно. DOCX из input, где нужные стили уже назначены вручную: заголовки, подписи, оглавление, приложения
+        и списки. Например: Каскаринское СП ОМ Эталон.docx'
+  - id: docx_style_fix
+    title: 'Style processing: fix'
+    title_ru: Исправление стилей DOCX
+    description: Conservatively assign existing styles to recognizable headings, captions, and TOC titles.
+    description_ru: Осторожно назначить существующие стили для распознанных заголовков, подписей и оглавления.
+    service: system_core.services.office_service:docx_style_fix
+    kind: safe
+    fields:
+    - id: reference_docx
+      type: text
+      label: Reference DOCX
+      label_ru: Эталон стилей DOCX
+      default: ''
+      field_group: style_reference
+      group_title_ru: Эталон
+      group_description_ru: Необязательный DOCX с вручную назначенными нужными стилями.
+      hint_ru: 'Необязательно. DOCX из input, где нужные стили уже назначены вручную: заголовки, подписи, оглавление, приложения
+        и списки. Например: Каскаринское СП ОМ Эталон.docx'
+  - id: docx_text_hygiene_scan
+    title: Text hygiene scan
+    title_ru: 'Гигиена текста: проверка'
+    description: Find spacing and punctuation issues.
+    description_ru: Найти проблемы пробелов и пунктуации.
+    service: system_core.services.office_service:docx_text_hygiene_scan
+    kind: safe
+    fields:
+    - id: check_dot
+      type: checkbox
+      label: Check dot spacing
+      label_ru: Проверять пробел после точки (эвристика)
+      default: false
+      hint_ru: Расширенная эвристика. Общая проверка пропускает типовые сокращения и единицы вроде кв.м, куб.м, руб., г.Тюмень, ул.Ленина; эти случаи относятся к правилам аудита или морфологии.
+  - id: docx_text_hygiene_fix
+    title: Text hygiene fix
+    title_ru: 'Гигиена текста: исправить'
+    description: Apply safe text-node fixes.
+    description_ru: Исправить только текст, не меняя структуру документа.
+    service: system_core.services.office_service:docx_text_hygiene_fix
+    kind: safe
+    fields:
+    - id: fix_dot
+      type: checkbox
+      label: Fix dot spacing
+      label_ru: Исправлять пробел после точки (эвристика)
+      default: false
+      hint_ru: Расширенная безопасная правка. Общее правило пропускает типовые сокращения и единицы вроде кв.м, куб.м, руб., г.Тюмень, ул.Ленина; исправлять их должен слой правил аудита или морфологический слой.
+    - id: remove_strikethrough
+      type: checkbox
+      label: Remove strikethrough text
+      label_ru: Удалять зачёркнутый текст
+      default: false
+      hint_ru: Меняет содержание документа, поэтому вынесено в отдельный явный параметр и выключено по умолчанию.
+  - id: docx_anomaly_scan
+    title: DOCX anomaly scan
+    title_ru: Проверка аномалий DOCX
+    description: Read-only scan for visible DOCX formatting and structure anomalies.
+    description_ru: 'Найти явные аномалии форматирования и структуры DOCX: таблицы, подписи, секции, ориентацию, пустоты и заголовки.'
+    service: system_core.services.office_service:docx_anomaly_scan
+    kind: safe
+    fields:
+    - id: check_tables
+      type: checkbox
+      label: Check tables
+      label_ru: Проверять таблицы
+      default: true
+      field_group: anomaly_classes
+      group_title_ru: Классы проверок
+      group_description_ru: Включите типы аномалий, которые попадут в единый отчёт с человеческой локацией.
+      hint_ru: 'Включает: ширину относительно полей и обрезку, полностью пустые строки/колонки, смешанные границы и поля ячеек, смесь шрифтов/кеглей, плотность, подозрительные объединения, точную высоту строк, запрет переноса текста в ячейках и повтор шапки.'
+    - id: check_captions
+      type: checkbox
+      label: Check captions
+      label_ru: Проверять подписи
+      default: true
+      field_group: anomaly_classes
+      hint_ru: 'Включает: пропуски, дубли и обратный ход номеров Таблиц/Рисунков, подпись далеко от объекта, подпись на другой странице, объект без подписи среди подписанных, неверную сторону подписи.'
+    - id: check_layout
+      type: checkbox
+      label: Check sections and orientation
+      label_ru: Проверять секции и ориентацию
+      default: true
+      field_group: anomaly_classes
+      hint_ru: 'Включает: альбомные секции без широкой таблицы, портретные секции с явно широкой таблицей, поля секций, отличающиеся от основного профиля без видимой причины.'
+    - id: check_headers
+      type: checkbox
+      label: Check headers and page numbers
+      label_ru: Проверять колонтитулы и номера страниц
+      default: true
+      field_group: anomaly_classes
+      hint_ru: 'Включает: отличающиеся верхние и нижние колонтитулы между секциями, съехавшие колонтитулы, явный старт или перезапуск нумерации страниц, особенно на первом листе.'
+    - id: check_fields
+      type: checkbox
+      label: Check fields and links
+      label_ru: Проверять поля и ссылки
+      default: true
+      field_group: anomaly_classes
+      hint_ru: 'Включает: оглавление, REF, SEQ, PAGE, PAGEREF, видимые ошибки полей, подозрительный текст полей, битые внутренние ссылки, повреждённые или дублирующиеся закладки.'
+    - id: check_lists
+      type: checkbox
+      label: Check lists and numbering
+      label_ru: Проверять списки и нумерацию
+      default: true
+      field_group: anomaly_classes
+      hint_ru: 'Включает: ручные номера вместо встроенной нумерации списков Word, пропуски логических номеров, дубли, обратный ход, лишние/недостаточные точки, висячие подпункты.'
+    - id: check_spacing
+      type: checkbox
+      label: Check blanks and headings
+      label_ru: Проверять пустоты и заголовки
+      default: true
+      field_group: anomaly_classes
+      hint_ru: 'Включает: две и более пустые строки подряд, почти пустые места, заголовок в конце страницы без текста после него, таблицу/объект, оторванные от вводного абзаца или подписи.'
+    - id: max_findings_per_file
+      type: number
+      label: Max findings per file
+      label_ru: Максимум находок на файл
+      default: 300
+      min: 1
+      max: 5000
+      step: 50
+      field_group: anomaly_report
+      group_title_ru: Отчёт
+      group_description_ru: Ограничение защищает отчёт от разрастания на сильно повреждённых документах.
+      hint_ru: В JSON остаётся тот же лимит. Увеличьте значение, если нужен полный список по большому документу.
+  - id: docx_anomaly_correct
+    title: DOCX anomaly correction
+    title_ru: Корректировка аномалий DOCX
+    description: Apply selected safe anomaly fixes to copied DOCX files.
+    description_ru: 'Применить выбранные безопасные правки аномалий к копиям DOCX: пустые абзацы, высота строк, перенос текста и опционально таблицы.'
+    service: system_core.services.office_service:docx_anomaly_correct
+    kind: safe
+    fields:
+    - id: fix_empty_paragraphs
+      type: checkbox
+      label: Collapse duplicated blank paragraphs
+      label_ru: Удалять лишние пустые абзацы
+      default: true
+      field_group: anomaly_safe_fixes
+      group_title_ru: Безопасные правки
+      group_description_ru: Эти операции пишут копии DOCX и не меняют исходные файлы.
+      hint_ru: В серии из двух и более пустых абзацев оставляется один. Абзацы с разрывами секций, полями, закладками и рисунками не удаляются.
+    - id: fix_row_heights
+      type: checkbox
+      label: Remove exact row heights
+      label_ru: Снимать точную высоту строк
+      default: true
+      field_group: anomaly_safe_fixes
+      hint_ru: Убирает режим exact у высоты строк таблиц, чтобы Word не резал переносимый текст.
+    - id: fix_nowrap
+      type: checkbox
+      label: Enable cell text wrapping
+      label_ru: Включать перенос текста в ячейках
+      default: true
+      field_group: anomaly_safe_fixes
+      hint_ru: Удаляет запрет переноса текста из ячеек таблиц, чтобы длинный текст мог переноситься.
+    - id: normalize_table_borders
+      type: checkbox
+      label: Normalize table borders
+      label_ru: Унифицировать границы таблиц
+      default: false
+      field_group: anomaly_table_fixes
+      group_title_ru: Опциональная унификация таблиц
+      group_description_ru: Более заметные правки оформления таблиц. Включайте осознанно.
+      hint_ru: Ставит единые чёрные одинарные границы таблиц. По умолчанию выключено, потому что меняет внешний вид всех таблиц.
+    - id: border_size
+      type: number
+      label: Border thickness
+      label_ru: Толщина границ
+      default: 4
+      min: 1
+      max: 24
+      step: 1
+      field_group: anomaly_table_fixes
+      hint_ru: 'Word OOXML хранит толщину в восьмых долях пункта: 4 = 0,5 pt.'
+    - id: normalize_cell_margins
+      type: checkbox
+      label: Normalize cell margins
+      label_ru: Унифицировать поля ячеек
+      default: false
+      field_group: anomaly_table_fixes
+      hint_ru: Ставит единые внутренние поля ячеек. По умолчанию выключено, чтобы не менять плотность всех таблиц без явного выбора.
+    - id: cell_margin_cm
+      type: number
+      label: Cell margin, cm
+      label_ru: Поля ячеек, см
+      default: 0.2
+      min: 0
+      max: 1
+      step: 0.05
+      field_group: anomaly_table_fixes
+      hint_ru: Значение для внутренних полей ячеек при включённой унификации.
+  - id: docx_nonprinting_clean
+    title: Remove DOCX nonprinting garbage
+    title_ru: Удалить непечатаемый мусор DOCX
+    description: Conservatively remove optional-hyphen artifacts from DOCX copies without touching spaces, tabs, breaks, visible hyphens, or layout controls.
+    description_ru: Осторожно удалить мягкие переносы из копий DOCX, не трогая пробелы, табы, разрывы, видимые дефисы и управляющие переносами символы.
+    service: system_core.services.office_service:docx_nonprinting_clean
+    kind: safe
+- id: find_replace
+  title: Find and replace
+  title_ru: Найти и заменить
+  description: High-precision DOCX/XLSX text replacement tools.
+  description_ru: Точные инструменты поиска и замены текста в DOCX/XLSX.
+  children:
+  - id: docx_comma_lowercase
+    title: Comma lowercase
+    title_ru: Регистр после запятых
+    description: Report suspicious uppercase words after commas inside DOCX table cells only; optionally lowercase ordinary
+      words while protecting abbreviations and Roman numerals. Every hit is listed with post-edit context.
+    description_ru: Найти подозрительные заглавные слова после запятых только внутри ячеек таблиц DOCX; при необходимости
+      понизить регистр обычных слов, не трогая аббревиатуры и римские цифры. Каждое срабатывание попадает в отчёт с контекстом
+      после правки.
+    service: system_core.services.office_service:docx_comma_lowercase
+    kind: safe
+    fields:
+    - id: dry_run
+      type: checkbox
+      label: Dry-run
+      label_ru: Пробный запуск без записи DOCX
+      default: true
+    - id: keep_words
+      type: text
+      label: Keep words
+      label_ru: Не менять слова
+      default: ''
+      hint_ru: CSV или путь к TXT/JSON/YAML-списку исключений.
+    - id: overwrite
+      type: checkbox
+      label: Overwrite
+      label_ru: Разрешить перезапись
+      default: false
+  - id: morph_replace
+    title: Morph replace
+    title_ru: Морфологическая замена
+    description: Find the same Russian phrase across cases, number, gender, and similar forms; optionally inflect replacement
+      text. The report lists every replacement with the full sentence from period to period.
+    description_ru: 'Высший уровень морфологической автоматизации: найти ту же русскую фразу в падежах, числе, роде и похожих
+      формах, а при необходимости согласовать падеж замены. Отчёт показывает каждую замену полным предложением от точки до
+      точки.'
+    service: system_core.services.office_service:morph_replace
+    kind: safe
+    fields:
+    - id: mode
+      type: select
+      label: Mode
+      label_ru: Режим
+      default: replace
+      options:
+      - value: replace
+        label: Replace
+        label_ru: Заменить
+      - value: append
+        label: Append next to match
+        label_ru: Добавить рядом
+    - id: find
+      type: text
+      label: Find
+      label_ru: Найти
+      default: гаражи
+    - id: replace
+      type: text
+      label: Replacement / added phrase
+      label_ru: Замена / добавляемая фраза
+      default: подземные гаражи
+      hint_ru: 'В режиме «Добавить рядом» укажите только добавку, например: подземные гаражи.'
+    - id: extensions
+      type: text
+      label: Extensions
+      label_ru: Расширения
+      default: .docx,.xlsx
+      hint_ru: Только .docx, .xlsx.
+    - id: inflect_replacement
+      type: checkbox
+      label: Inflect replacement
+      label_ru: Согласовать падеж замены
+      default: true
+    - id: dry_run
+      type: checkbox
+      label: Dry-run
+      label_ru: Пробный запуск без записи файлов
+      default: true
+    - id: overwrite
+      type: checkbox
+      label: Overwrite
+      label_ru: Разрешить перезапись
+      default: false
+- id: docx_control_cleanup
+  title: DOCX control and cleanup
+  title_ru: Контроль и очистка DOCX
+  description: Quality gates, comment/change cleanup, finalization, and one-click workflow.
+  description_ru: Проверка качества, комментарии/правки, финализация и сценарий одной кнопкой.
+  children:
+  - id: docx_quality_gate
+    title: DOCX quality check
+    title_ru: Проверка качества DOCX
+    description: Scan colors, highlights, comments, and tracked changes.
+    description_ru: Проверить цвет шрифта, подсветку, комментарии и правки.
+    service: system_core.services.office_service:docx_quality_gate
+    kind: safe
+  - id: docx_hard_gate
+    title: Strict DOCX check
+    title_ru: Строгая проверка DOCX
+    description: Fail with non-zero exit code when quality issues are found.
+    description_ru: Ненулевой код, если найдены проблемы качества.
+    service: system_core.services.office_service:docx_hard_gate
+    kind: safe
+  - id: docx_strip_comments
+    title: Strip comments
+    title_ru: Удалить комментарии
+    description: Remove DOCX comments and markers.
+    description_ru: Удалить комментарии и маркеры.
+    service: system_core.services.office_service:docx_strip_comments
+    kind: safe
+  - id: docx_accept_changes
+    title: Accept changes
+    title_ru: Принять правки
+    description: Simple best-effort tracked changes acceptance.
+    description_ru: Попытаться принять исправления из режима рецензирования.
+    service: system_core.services.office_service:docx_accept_changes
+    kind: safe
+  - id: docx_finalize_black
+    title: Black + clean
+    title_ru: Чёрный текст + очистка
+    description: Force black text and remove highlights, shading, strikethrough.
+    description_ru: Чёрный текст, убрать подсветку, заливку и зачёркивание.
+    service: system_core.services.office_service:docx_finalize_black
+    kind: safe
+  - id: docx_oneclick
+    title: Finalize + gate
+    title_ru: Финализация + проверка
+    description: One-click finalize workflow with final reports.
+    description_ru: Финализация одной кнопкой с итоговыми отчётами.
+    service: system_core.services.office_service:docx_oneclick
+    kind: safe
+    fields:
+    - id: strip_comments
+      type: checkbox
+      label: Strip comments
+      label_ru: Удалять комментарии
+      default: true
+    - id: accept_changes
+      type: checkbox
+      label: Accept changes
+      label_ru: Принимать правки
+      default: true
+    - id: fix_dot
+      type: checkbox
+      label: Fix dot spacing
+      label_ru: Исправлять пробел после точки
+      default: false
+- id: compare_reconcile
+  title: Compare and reconcile
+  title_ru: Сравнение и сверка
+  description: DOCX diffs, similarity reports, XLSX value comparison, and tabular reconciliation.
+  description_ru: Сравнение DOCX, отчёты похожести, сверка XLSX и табличные расхождения.
+  children:
+  - id: docx_near_dupes
+    title: DOCX similarity map
+    title_ru: Карта сходства DOCX
+    description: Recursive DOCX similarity map with exact duplicates, related-version candidates, and recommendations.
+    description_ru: Рекурсивная карта сходства DOCX с точными дублями, кандидатами связанных версий и рекомендациями.
+    service: system_core.services.office_service:docx_near_dupes
+    kind: safe
+    fields:
+    - id: threshold
+      type: text
+      label: Threshold
+      label_ru: Порог кандидатности
+      default: '0.30'
+    - id: write_diff
+      type: checkbox
+      label: Write diffs
+      label_ru: Сохранять файл различий
+      default: false
+  - id: docx_pair_diff
+    title: Diff two DOCX
+    title_ru: Сравнить два DOCX в DocFlow
+    description: Compare DOCX body text and tables by heading structure; table of contents is skipped.
+    description_ru: Сравнить текст и таблицы DOCX по структуре заголовков; оглавление пропускается.
+    service: system_core.services.office_service:docx_pair_diff
+    kind: safe
+    fields:
+    - id: compare_mode
+      type: select
+      label: Compare mode
+      label_ru: Режим сравнения
+      default: sections
+      options:
+      - value: sections
+        label: Match sections by similarity
+        label_ru: Сопоставлять разделы по похожести
+      - value: sequence
+        label: Document order
+        label_ru: По порядку документа
+    - id: docflow_output_mode
+      type: select
+      label: Output
+      label_ru: Результат
+      default: redline_report
+      options:
+      - value: redline_report
+        label: Redline DOCX + reports
+        label_ru: DOCX с правками + отчёты
+      - value: report_only
+        label: Reports only
+        label_ru: Только отчёты
+    - id: docx_a
+      type: file
+      label: Old DOCX
+      label_ru: Старый DOCX
+      extensions: .docx
+      span: full
+      default: ''
+    - id: docx_b
+      type: file
+      label: New DOCX
+      label_ru: Новый DOCX
+      extensions: .docx
+      span: full
+      default: ''
+  - id: docx_word_compare
+    title: Compare via Word
+    title_ru: Сравнить с Word COM
+    description: Create a native Microsoft Word comparison DOCX with revisions.
+    description_ru: Создать нативный DOCX сравнения Microsoft Word с правками.
+    service: system_core.services.office_service:docx_word_compare
+    kind: safe
+    fields:
+    - id: word_compare_a
+      type: file
+      label: Old DOCX
+      label_ru: Старый DOCX
+      extensions: .docx
+      span: full
+      default: ''
+    - id: word_compare_b
+      type: file
+      label: New DOCX
+      label_ru: Новый DOCX
+      extensions: .docx
+      span: full
+      default: ''
+    - id: word_compare_split_mode
+      type: radio
+      label: Split mode
+      label_ru: Разрезка
+      default: none
+      options:
+      - value: none
+        label: Do not split
+        label_ru: Не разрезать
+      - value: smart
+        label: Smart split
+        label_ru: Разрезать умно
+      - value: chunks
+        label: Split by chunk count
+        label_ru: Разрезать с числом кусков
+      span: full
+    - id: word_compare_auto_smart_on_problem
+      type: checkbox
+      label: Enable smart split on problems
+      label_ru: Включить умное разрезание документа в случае проблем
+      default: true
+      span: full
+      hint_ru: 'В режиме «Не разрезать» сначала запускается обычный Word COM; если Word падает или зависает, DocFlow переходит к умной разрезке: около 8 крупных кусков, затем дихотомия проблемных долей.'
+    - id: word_compare_close_word_before_compare
+      type: checkbox
+      label: Close Word before compare
+      label_ru: Закрывать процесс Word перед началом сравнения
+      default: false
+      span: full
+      hint_ru: Опасно при открытых документах Word. Включайте только если готовы принудительно закрыть все окна WINWORD; несохранённые правки могут потеряться.
+    - id: word_compare_chunks
+      type: text
+      label: Chunks
+      label_ru: Кусков
+      default: ''
+      span: compact
+      hint_ru: Для режима с числом кусков. Если пусто, DOCX режется по верхнему порядку разделов; если указано число, разделы распределяются примерно на столько кусков.
+  - id: xlsx_values_diff
+    title: XLSX values diff
+    title_ru: XLSX сравнение значений
+    description: Compare two XLSX files from input by relative path.
+    description_ru: Сравнить два XLSX из input по вычисленным значениям ячеек.
+    service: system_core.services.office_service:xlsx_values_diff
+    kind: safe
+    fields:
+    - id: xlsx_a
+      type: text
+      label: XLSX A
+      label_ru: Первый XLSX
+      default: ''
+    - id: xlsx_b
+      type: text
+      label: XLSX B
+      label_ru: Второй XLSX
+      default: ''
+  - id: tabular_reconcile
+    title: Table reconcile
+    title_ru: Сверка таблиц
+    description: Match/mismatch/only-A/only-B report for DOCX/XLSX/CSV tables.
+    description_ru: 'Сверить таблицы DOCX/XLSX/CSV: совпадения, отличия, только A и только B.'
+    service: system_core.services.office_service:tabular_reconcile
+    kind: safe
+    fields:
+    - id: table_a
+      type: text
+      label: Table A
+      label_ru: Таблица A
+      default: ''
+    - id: table_b
+      type: text
+      label: Table B
+      label_ru: Таблица B
+      default: ''
+    - id: key_columns
+      type: text
+      label: Key columns
+      label_ru: Ключевые колонки
+      default: ''
+    - id: compare_fields
+      type: text
+      label: Compare fields
+      label_ru: Поля сравнения
+      default: ''
+- id: word_excel_tables
+  title: WORD/EXCEL TABLES
+  title_ru: ТАБЛИЦЫ WORD/EXCEL
+  description: DOCX table stitching, unifying, width fitting, orientation adaptation, and extraction.
+  description_ru: Сшивание, объединение, оптимизация, адаптация ориентации, вписывание и извлечение таблиц DOCX.
+  children:
+  - id: docx_table_stitcher
+    title: Stitch tables split after PDF export
+    title_ru: Сшить разрезанные после экспорта PDF
+    description: Conservatively stitch adjacent DOCX table slices after PDF-to-DOCX conversion.
+    description_ru: Сшить соседние фрагменты DOCX-таблиц, разрезанные после экспорта PDF в DOCX.
+    service: system_core.services.office_service:docx_table_stitcher
+    kind: safe
+    fields:
+    - id: preheader_mode
+      type: select
+      label: Pre-header
+      label_ru: Строки перед шапкой
+      default: separate
+      hint_ru: 'Строки перед шапкой: строки над основной шапкой таблицы. Обычное сшивание сохраняет их как есть.'
+      options:
+      - value: separate
+        label: Keep separate
+        label_ru: Не включать в повторяемую шапку
+      - value: include
+        label: Include in header
+        label_ru: Считать частью шапки
+  - id: docx_table_stitcher_running_header
+    title: Stitch and reconstruct repeated headers
+    title_ru: Сшить и восстановить повторяемую шапку
+    description: Stitch sliced DOCX tables and reconstruct repeated table headers with the dedicated backend engine.
+    description_ru: Сшить фрагменты DOCX-таблиц и восстановить повторяемую шапку отдельным специализированным движком.
+    service: system_core.services.office_service:docx_table_stitcher_running_header
+    kind: safe
+    fields:
+    - id: preheader_mode
+      type: select
+      label: Pre-header
+      label_ru: Строки перед шапкой
+      default: separate
+      hint_ru: Определяет, оставить строки перед основной шапкой один раз или включить их в повторяемую шапку.
+      options:
+      - value: separate
+        label: Keep separate
+        label_ru: Оставить один раз перед шапкой
+      - value: include
+        label: Include in repeated header
+        label_ru: Включить в повторяемую шапку
+  - id: docx_document_tables_unifier
+    title: Unify tables in document
+    title_ru: Унифицировать таблицы в документе
+    description: Normalize table fonts, density-based font sizes, borders, cell margins, column balance, and fit widths to document sections. Bold, italic, and underline are removed from processed tables.
+    description_ru: 'Одним проходом привести таблицы к единому виду: два размера шрифта по плотности, границы, поля ячеек, баланс колонок и вписывание в поля разделов. В обработанных таблицах жирность, курсив и подчёркивание убираются.'
+    service: system_core.services.office_service:docx_document_tables_unifier
+    kind: safe
+    fields:
+    - id: skip_first_pages
+      type: number
+      label: Skip first document pages
+      label_ru: Не обрабатывать таблицы первых страниц
+      default: 2
+      step: 1
+      min: 0
+      span: compact
+      field_group: processing_scope
+      group_title: Processing scope
+      group_title_ru: Область обработки
+      group_description: Preserve title-page tables before normalizing the rest of the document.
+      group_description_ru: Таблицы первых страниц остаются как в исходнике; остальные таблицы обрабатываются одним проходом.
+      hint_ru: Таблицы, которые по служебным разрывам Word относятся к первым N страницам, сохраняются как в исходнике.
+    - id: dense_size
+      type: number
+      label: Small font, pt
+      label_ru: Небольшой шрифт, pt
+      default: 8
+      step: 0.5
+      min: 5
+      span: compact
+      field_group: font_sizes
+      group_title: Font sizes
+      group_title_ru: Размеры шрифта в таблицах
+      group_description: Use a smaller size for dense tables and a larger size for regular tables.
+      group_description_ru: Плотные таблицы получают меньший размер, обычные таблицы — больший размер.
+      hint_ru: Размер для плотных таблиц с большим числом данных, строк или столбцов.
+    - id: normal_size
+      type: number
+      label: Large font, pt
+      label_ru: Большой шрифт, pt
+      default: 10
+      step: 0.5
+      min: 5
+      span: compact
+      field_group: font_sizes
+      hint_ru: Размер для обычных, менее плотных таблиц.
+    - id: border_size
+      type: number
+      label: Border thickness
+      label_ru: Толщина границ
+      default: 4
+      step: 1
+      min: 1
+      span: compact
+      field_group: table_format
+      group_title: Table formatting
+      group_title_ru: Оформление таблиц
+      group_description: Borders and cell padding are unified; bold, italic, and underline are removed automatically.
+      group_description_ru: Границы и поля ячеек унифицируются; жирность, курсив и подчёркивание убираются автоматически.
+      hint_ru: 'Word OOXML хранит толщину в восьмых долях пункта: 4 = 0,5 pt.'
+    - id: cell_margin_cm
+      type: number
+      label: Cell margin, cm
+      label_ru: Поля ячеек, см
+      default: 0.2
+      step: 0.05
+      min: 0
+      span: compact
+      field_group: table_format
+      hint_ru: Внутренний отступ текста от границ ячейки. 0,2 см даёт больше воздуха, чем прежний компактный режим 0,1 см.
+  - id: docx_table_unify_safe
+    title: Unify DOCX tables only
+    title_ru: Объединить только таблицы
+    description: Unify compatible DOCX tables by column structure and detected headers, without merged title rows.
+    description_ru: Объединить совместимые DOCX-таблицы по колонкам и распознанной шапке без строк-заголовков разделов.
+    service: system_core.services.office_service:docx_table_unify_safe
+    kind: safe
+    fields: &table_unify_fields
+    - id: preheader_mode
+      type: select
+      label: Pre-header
+      label_ru: Строки перед шапкой
+      default: separate
+      hint_ru: 'Строки перед шапкой: строки над основной шапкой таблицы. Повторяемая шапка — часть шапки,
+        которую Word повторяет при переносе таблицы.'
+      options:
+      - value: separate
+        label: Keep once before header
+        label_ru: Оставить один раз перед шапкой
+      - value: include
+        label: Include in repeat header
+        label_ru: Считать частью повторяемой шапки
+      span: compact
+    - id: page_size
+      type: select
+      label: Page
+      label_ru: Формат
+      default: A4
+      options:
+      - value: A4
+        label: A4
+      - value: A3
+        label: A3
+      span: compact
+    - id: page_orientation
+      type: select
+      label: Orientation
+      label_ru: Ориентация
+      default: document
+      options:
+      - value: document
+        label: As in document
+        label_ru: Как в документе
+      - value: landscape
+        label: Landscape
+        label_ru: Альбомная
+      - value: portrait
+        label: Portrait
+        label_ru: Книжная
+      span: compact
+      hint_ru: 'Как в документе: если страницы с таблицами где-либо альбомные, итог будет альбомным; иначе книжным.'
+    - id: margin_left_mm
+      type: number
+      label: Left, mm
+      label_ru: Лево, мм
+      step: 1
+      min: 0
+      span: margin
+    - id: margin_right_mm
+      type: number
+      label: Right, mm
+      label_ru: Право, мм
+      step: 1
+      min: 0
+      span: margin
+    - id: margin_top_mm
+      type: number
+      label: Top, mm
+      label_ru: Верх, мм
+      step: 1
+      min: 0
+      span: margin
+    - id: margin_bottom_mm
+      type: number
+      label: Bottom, mm
+      label_ru: Низ, мм
+      step: 1
+      min: 0
+      span: margin
+  - id: docx_table_unify_width_only
+    title: Unify tables by column count only
+    title_ru: Объединить таблицы только по числу колонок
+    description: Use the permissive width-only backend mode and group tables when their column counts match, without checking header similarity.
+    description_ru: Использовать разрешительный режим backend и объединять таблицы при одинаковом числе колонок без проверки сходства шапок.
+    service: system_core.services.office_service:docx_table_unify_width_only
+    kind: safe
+    fields: *table_unify_fields
+  - id: docx_table_unify_merged_sections
+    title: Unify DOCX tables with heading
+    title_ru: Объединить таблицы с заголовком
+    description: Unify compatible DOCX tables and keep section or title rows as merged heading rows.
+    description_ru: Объединить совместимые DOCX-таблицы, сохранив заголовки или разделы как объединённые строки.
+    service: system_core.services.office_service:docx_table_unify_merged_sections
+    kind: safe
+    fields:
+    - id: preheader_mode
+      type: select
+      label: Pre-header
+      label_ru: Строки перед шапкой
+      default: separate
+      hint_ru: 'Строки перед шапкой: строки над основной шапкой таблицы. Повторяемая шапка — часть шапки,
+        которую Word повторяет при переносе таблицы.'
+      options:
+      - value: separate
+        label: Keep once before header
+        label_ru: Оставить один раз перед шапкой
+      - value: include
+        label: Include in repeat header
+        label_ru: Считать частью повторяемой шапки
+      span: compact
+    - id: page_size
+      type: select
+      label: Page
+      label_ru: Формат
+      default: A4
+      options:
+      - value: A4
+        label: A4
+      - value: A3
+        label: A3
+      span: compact
+    - id: page_orientation
+      type: select
+      label: Orientation
+      label_ru: Ориентация
+      default: document
+      options:
+      - value: document
+        label: As in document
+        label_ru: Как в документе
+      - value: landscape
+        label: Landscape
+        label_ru: Альбомная
+      - value: portrait
+        label: Portrait
+        label_ru: Книжная
+      span: compact
+      hint_ru: 'Как в документе: если страницы с таблицами где-либо альбомные, итог будет альбомным; иначе книжным.'
+    - id: margin_left_mm
+      type: number
+      label: Left, mm
+      label_ru: Лево, мм
+      step: 1
+      min: 0
+      span: margin
+    - id: margin_right_mm
+      type: number
+      label: Right, mm
+      label_ru: Право, мм
+      step: 1
+      min: 0
+      span: margin
+    - id: margin_top_mm
+      type: number
+      label: Top, mm
+      label_ru: Верх, мм
+      step: 1
+      min: 0
+      span: margin
+    - id: margin_bottom_mm
+      type: number
+      label: Bottom, mm
+      label_ru: Низ, мм
+      step: 1
+      min: 0
+      span: margin
+  - id: docx_table_optimize_widths
+    title: Optimize table widths
+    title_ru: Оптимизировать ширину таблиц
+    description: Rebalance existing DOCX table column widths without rebuilding the whole document.
+    description_ru: Перебалансировать ширины колонок существующих DOCX-таблиц без полной пересборки документа.
+    service: system_core.services.office_service:docx_table_optimize_widths
+    kind: safe
+    fields:
+    - id: preheader_mode
+      type: select
+      label: Pre-header
+      label_ru: Строки перед шапкой
+      default: separate
+      hint_ru: 'Режим «Не считать частью шапки»: строки перед шапкой не участвуют в расчёте весов повторяемой
+        шапки и ширин колонок.'
+      options:
+      - value: separate
+        label: Keep separate
+        label_ru: Не считать частью шапки
+      - value: include
+        label: Include in header
+        label_ru: Считать частью шапки
+  - id: docx_table_adapt_orientation
+    title: Adapt table to orientation
+    title_ru: Адаптировать таблицу к ориентации
+    description: Apply A4/A3 orientation to DOCX sections and optionally balance table columns or fit tables into the resulting
+      margins.
+    description_ru: Сменить формат/ориентацию DOCX и при необходимости балансировать колонки или вписать таблицы в поля.
+    service: system_core.services.office_service:docx_table_adapt_orientation
+    kind: safe
+    fields:
+    - id: preheader_mode
+      type: select
+      label: Pre-header
+      label_ru: Строки перед шапкой
+      default: separate
+      options: &id001
+      - value: separate
+        label: Keep separate
+        label_ru: Не считать частью шапки
+      - value: include
+        label: Include in header
+        label_ru: Считать частью шапки
+      span: compact
+    - id: page_size
+      type: select
+      label: Page
+      label_ru: Формат
+      default: A4
+      options: &id002
+      - value: A4
+        label: A4
+      - value: A3
+        label: A3
+      span: compact
+    - id: page_orientation
+      type: select
+      label: Orientation
+      label_ru: Ориентация
+      default: landscape
+      options: &id003
+      - value: landscape
+        label: Landscape
+        label_ru: Альбомная
+      - value: portrait
+        label: Portrait
+        label_ru: Книжная
+      span: compact
+    - id: width_action
+      type: radio
+      label: Table widths
+      label_ru: Ширина таблиц
+      default: fit-to-margins
+      options:
+      - value: none
+        label: Do not change widths
+        label_ru: Не менять ширины
+      - value: balance
+        label: Balance columns
+        label_ru: Балансировать колонки
+      - value: fit-to-margins
+        label: Fit into margins
+        label_ru: Вписать в поля
+      span: full
+      hint_ru: Пустые поля ниже сохраняют исходные поля документа; заполненные значения применяются в миллиметрах.
+    - id: skip_fit_by_columns
+      type: checkbox
+      label: Do not fit small-column tables
+      label_ru: Не вписывать в поля по числу столбцов
+      default: true
+      span: full
+      hint_ru: Если включено, таблицы с числом столбцов не больше порога ниже остаются без пересчёта ширины.
+    - id: skip_fit_max_columns
+      type: number
+      label: Column threshold
+      label_ru: Порог столбцов
+      default: 3
+      step: 1
+      min: 0
+      span: compact
+    - id: margin_left_mm
+      type: number
+      label: Left, mm
+      label_ru: Лево, мм
+      step: 1
+      min: 0
+      span: margin
+    - id: margin_right_mm
+      type: number
+      label: Right, mm
+      label_ru: Право, мм
+      step: 1
+      min: 0
+      span: margin
+    - id: margin_top_mm
+      type: number
+      label: Top, mm
+      label_ru: Верх, мм
+      step: 1
+      min: 0
+      span: margin
+    - id: margin_bottom_mm
+      type: number
+      label: Bottom, mm
+      label_ru: Низ, мм
+      step: 1
+      min: 0
+      span: margin
+  - id: docx_table_fit_to_margins
+    title: Fit DOCX tables to document
+    title_ru: Вписать таблицы в документе
+    description: Fit existing DOCX tables into current document margins or an explicit A4/A3 page setup.
+    description_ru: Вписать существующие DOCX-таблицы в текущие поля документа или заданный формат A4/A3.
+    service: system_core.services.office_service:docx_table_fit_to_margins
+    kind: safe
+    fields:
+    - id: preheader_mode
+      type: select
+      label: Pre-header
+      label_ru: Строки перед шапкой
+      default: separate
+      options: *id001
+      span: compact
+    - id: fit_target
+      type: select
+      label: Fit target
+      label_ru: Куда вписать
+      default: current-section
+      options:
+      - value: current-section
+        label: Current document margins
+        label_ru: В текущие поля документа
+      - value: page-setup
+        label: Apply page setup
+        label_ru: В A4/A3 с ориентацией
+      span: compact
+    - id: page_size
+      type: select
+      label: Page
+      label_ru: Формат
+      default: A4
+      options: *id002
+      span: compact
+    - id: page_orientation
+      type: select
+      label: Orientation
+      label_ru: Ориентация
+      default: landscape
+      options: *id003
+      span: compact
+    - id: skip_fit_by_columns
+      type: checkbox
+      label: Do not fit small-column tables
+      label_ru: Не вписывать в поля по числу столбцов
+      default: true
+      span: full
+      hint_ru: Если включено, таблицы с числом столбцов не больше порога ниже остаются без пересчёта ширины.
+    - id: skip_fit_max_columns
+      type: number
+      label: Column threshold
+      label_ru: Порог столбцов
+      default: 3
+      step: 1
+      min: 0
+      span: compact
+    - id: margin_left_mm
+      type: number
+      label: Left, mm
+      label_ru: Лево, мм
+      step: 1
+      min: 0
+      span: margin
+    - id: margin_right_mm
+      type: number
+      label: Right, mm
+      label_ru: Право, мм
+      step: 1
+      min: 0
+      span: margin
+    - id: margin_top_mm
+      type: number
+      label: Top, mm
+      label_ru: Верх, мм
+      step: 1
+      min: 0
+      span: margin
+    - id: margin_bottom_mm
+      type: number
+      label: Bottom, mm
+      label_ru: Низ, мм
+      step: 1
+      min: 0
+      span: margin
+  - id: docx_extract_tables
+    title: Extract tables from DOCX
+    title_ru: Извлечь таблицы из DOCX
+    description: Export all DOCX tables to XLSX and create an index report.
+    description_ru: Выгрузить все таблицы DOCX в XLSX и создать индексный отчёт.
+    service: system_core.services.office_service:docx_extract_tables
+    kind: safe
+- id: export_technical
+  title: Technical operations
+  title_ru: Технические операции
+  description: Media extraction, DOCX merge helpers, and table export/cleanup utilities.
+  description_ru: Извлечение медиафайлов, служебная склейка DOCX и табличные технические операции.
+  children:
+  - id: docx_extract_media
+    title: Extract media
+    title_ru: Извлечь медиа
+    description: Extract DOCX/PPTX images without manual ZIP work.
+    description_ru: Извлечь изображения DOCX/PPTX без ручного разбора ZIP-архива.
+    service: system_core.services.office_service:docx_extract_media
+    kind: safe
+  - id: docx_clean
+    title: Clean DOCX
+    title_ru: Очистить DOCX
+    description: 'Clean DOCX copies from input. Features: rsid markup; orphaned comments; report.'
+    description_ru: 'Очистить копии DOCX из input. Фичи: rsid-метки; осиротевшие комментарии; отчёт.'
+    service: system_core.services.office_service:docx_clean
+    kind: safe
+  - id: docx_split
+    title: Split DOCX
+    title_ru: Разрезать DOCX
+    description: Split DOCX files into smaller packages by top-level sections or by a target chunk count.
+    description_ru: Разрезать DOCX на меньшие файлы по верхним разделам или по заданному числу кусков.
+    service: system_core.services.office_service:docx_split
+    kind: safe
+    fields:
+    - id: docx_split_top_level_sections
+      type: checkbox
+      label: Top-level sections
+      label_ru: 'По разделам верхнего уровня: 1, 2, 3, 4...'
+      default: true
+      span: full
+    - id: docx_split_chunks
+      type: text
+      label: Chunks
+      label_ru: Кусков
+      default: ''
+      span: compact
+      hint_ru: Если пусто и включены верхние разделы, каждый раздел станет отдельным DOCX. Если указано число, разделы группируются примерно на столько кусков.
+  - id: docx_merge
+    title: Merge DOCX via Word
+    title_ru: Склеить DOCX через Word
+    description: Use Microsoft Word COM to insert DOCX files into one output document.
+    description_ru: Склеить DOCX через автоматизацию Microsoft Word (COM), близко к ручной вставке документа.
+    service: system_core.services.office_service:docx_merge
+    kind: safe
+    fields:
+    - id: files
+      type: text
+      label: Files
+      label_ru: Файлы
+      default: ''
+      hint_ru: Пусто = все DOCX из input по имени. Можно указать через ;
+    - id: output_name
+      type: text
+      label: Output DOCX
+      label_ru: Выходной DOCX
+      default: merged.docx
+  - id: md_tables_to_xlsx
+    title: Markdown tables to XLSX
+    title_ru: Markdown-таблицы в XLSX
+    description: Export Markdown pipe tables from input to XLSX in output.
+    description_ru: Экспортировать Markdown-таблицы из input в XLSX в output.
+    service: system_core.services.office_service:md_tables_to_xlsx
+    kind: safe
+    fields:
+    - id: md_file
+      type: text
+      label: Markdown file
+      label_ru: Markdown-файл
+      default: ''
+    - id: output_name
+      type: text
+      label: Output XLSX
+      label_ru: Выходной XLSX
+      default: markdown_tables.xlsx
+  - id: xlsx_remove_empty_rows
+    title: Remove insignificant Excel rows
+    title_ru: Очистить незначащие строки Excel
+    description: Create XLSX copies without fully empty rows; whitespace-only cells are treated as empty.
+    description_ru: Создать XLSX-копии без полностью пустых строк; ячейки только с пробелами считаются пустыми.
+    service: system_core.services.office_service:xlsx_remove_empty_rows
+    kind: safe
+    fields:
+    - id: xlsx_clean_all_sheets
+      type: checkbox
+      label: All sheets
+      label_ru: Все листы
+      default: true
+      span: full
+  - id: table_cell_margins
+    title: Reduce table cell margins
+    title_ru: Уменьшить поля ячеек таблиц
+    description: Set DOCX table cell margins to 0.1 cm and reset XLSX text indents where available.
+    description_ru: Поставить поля ячеек таблиц DOCX в 0,1 см и сбросить доступные текстовые отступы XLSX.
+    service: system_core.services.office_service:table_cell_margins
+    kind: safe
+- id: checks
+  title: Checks
+  title_ru: Проверки
+  description: Input and dependency diagnostics.
+  description_ru: Проверка input и зависимостей.
+  children:
+  - id: validate_input
+    title: Validate input
+    title_ru: Проверить input
+    description: Inventory all staged input files.
+    description_ru: Посчитать все файлы в input.
+    service: system_core.services.office_service:validate_input
+    kind: safe
+maintenance_operations:
+- id: cleanup_input_output
+  title: Clear I/O
+  title_ru: Очистить input/output
+  description: Delete contents of managed input and output folders, keeping folder structure.
+  description_ru: Удалить содержимое input и output, сохранив сами папки.
+  service: system_core.services.office_service:cleanup_input_output
+  kind: dangerous

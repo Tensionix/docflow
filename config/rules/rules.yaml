@@ -1,0 +1,251 @@
+version: 1
+id: docx_audit_rules
+name_ru: "Правила DOCX audit processor"
+purpose_ru: >
+  Машинно-читаемая карта правил, выделенных из пользовательских audit-мастеров.
+  В проект попадают только детерминированные проверки с низким риском ложной
+  правки. Остальные правила остаются для AI-вычитки.
+
+source_files:
+  - "Google AI Studio/00_AUDIT_RULES_MASTER.md"
+  - "Google AI Studio/00_AUDIT_RULES_MASTER_RECOMMENDED.md"
+
+processor:
+  script: "system_core/docx_audit_processor.py"
+  reports:
+    markdown: "report/docx_audit_processor.md"
+    docx: "report/docx_audit_processor.docx"
+    json: "report/docx_audit_processor.json"
+  output_dir: "output/audit_processed"
+  annotated_output_dir: "output/audit_annotated"
+  unanchored_output_dir: "output/audit_unanchored"
+  anchor_format: "⟦A0001 AUDIT-RULE-CODE⟧"
+  anchor_color: "C05600"
+  anchor_workflow_ru: >
+    По умолчанию audit processor создаёт *__annotated.docx с якорями рядом с
+    найденными местами, но не исправляет этот экземпляр. После пользовательского
+    одобрения техническая операция "Снять якоря DOCX" удаляет служебные метки и
+    пишет чистые копии.
+  edit_scope_ru: "Только видимые текстовые узлы DOCX w:t; структура, стили, таблицы, секции и media не переписываются."
+  safety_model_ru: "Правки применяются к копиям документов. Неоднозначные правила работают как scan/suggest или остаются для AI."
+
+deterministic_project_rules:
+  - code: AUDIT-UNIT-SQM
+    status: implemented
+    action: fix
+    severity: major
+    title_ru: "Единицы площади: кв. м"
+    canonical: "кв. м"
+    source_sections:
+      - "Типографика и пробелы"
+      - "Сокращения и единицы"
+    examples:
+      - before: "10кв.м"
+        after: "10 кв. м"
+      - before: "10 кв м"
+        after: "10 кв. м"
+      - before: "10 кв.м."
+        after: "10 кв. м"
+      - before: "10 м2"
+        after: "10 кв. м"
+      - before: "10 м²"
+        after: "10 кв. м"
+      - before: "10 квадратных метров"
+        after: "10 кв. м"
+    notes_ru: "Правило срабатывает только после числа, чтобы не ломать текстовые упоминания без величины."
+
+  - code: AUDIT-UNIT-CUBIC
+    status: implemented
+    action: fix
+    severity: major
+    title_ru: "Единицы объёма: куб. м"
+    canonical: "куб. м"
+    source_sections:
+      - "Типографика и пробелы"
+      - "Сокращения и единицы"
+    examples:
+      - before: "15куб.м"
+        after: "15 куб. м"
+      - before: "15 м3"
+        after: "15 куб. м"
+      - before: "15 м³"
+        after: "15 куб. м"
+      - before: "15 кубических метров"
+        after: "15 куб. м"
+
+  - code: AUDIT-UNIT-SPACE
+    status: implemented
+    action: fix
+    severity: minor
+    title_ru: "Пробел между числом и единицей измерения"
+    canonical: "число + пробел + единица"
+    source_sections:
+      - "Типографика и пробелы"
+      - "Сокращения и единицы"
+    covered_units:
+      - "мм"
+      - "см"
+      - "м"
+      - "км"
+      - "га"
+      - "т"
+      - "кг"
+      - "л"
+      - "мл"
+      - "руб."
+      - "Гкал/ч"
+      - "Гкал"
+      - "кВт"
+      - "МВт"
+    examples:
+      - before: "10м"
+        after: "10 м"
+      - before: "5км"
+        after: "5 км"
+      - before: "20га"
+        after: "20 га"
+      - before: "3Гкал/ч"
+        after: "3 Гкал/ч"
+      - before: "100руб."
+        after: "100 руб."
+
+  - code: AUDIT-PERCENT
+    status: implemented
+    action: fix
+    severity: minor
+    title_ru: "Процент без пробела"
+    canonical: "50%"
+    source_sections:
+      - "Типографика и пробелы"
+    examples:
+      - before: "50 %"
+        after: "50%"
+
+  - code: AUDIT-DEGREE
+    status: implemented
+    action: fix
+    severity: minor
+    title_ru: "Градусы без пробела"
+    canonical: "5°, 5°C, -12°C"
+    source_sections:
+      - "Типографика и пробелы"
+    examples:
+      - before: "5 °"
+        after: "5°"
+      - before: "5 °C"
+        after: "5°C"
+      - before: "-12 °C"
+        after: "-12°C"
+
+  - code: AUDIT-NUMBER-SIGN
+    status: implemented
+    action: fix
+    severity: minor
+    title_ru: "Пробел после знака номера"
+    canonical: "№ 1"
+    source_sections:
+      - "Типографика и пробелы"
+      - "Оформление правовых актов"
+    examples:
+      - before: "№1"
+        after: "№ 1"
+
+  - code: AUDIT-DATE-YEAR-SUFFIX
+    status: implemented
+    action: fix
+    severity: minor
+    title_ru: "Дата без суффикса г."
+    canonical: "20.12.2012"
+    source_sections:
+      - "Сокращения и единицы"
+    examples:
+      - before: "20.12.2012 г."
+        after: "20.12.2012"
+
+  - code: AUDIT-CAPTION-TABLE-TYPO
+    status: implemented
+    action: fix
+    severity: major
+    title_ru: "Опечатки в названии таблицы"
+    canonical: "Таблица 1"
+    source_sections:
+      - "Таблицы, рисунки и подписи"
+    examples:
+      - before: "Таблрица. 3"
+        after: "Таблица 3"
+      - before: "Таблица. 3"
+        after: "Таблица 3"
+
+  - code: AUDIT-RF-SCAN
+    status: implemented
+    action: suggest
+    severity: warning
+    title_ru: "Сокращение РФ"
+    canonical: "Российская Федерация / Российской Федерации"
+    source_sections:
+      - "Жесткие ограничения"
+      - "НПА и юридические форматы"
+    examples:
+      - before: "РФ"
+        after: "Российская Федерация / Российской Федерации (проверить падеж)"
+    notes_ru: "Не исправляется автоматически из-за падежа, цитат, реквизитов и официальных названий."
+
+future_project_candidates:
+  - code: AUDIT-UNIT-MULTIPLIER
+    status: planned
+    action: fix_or_suggest
+    title_ru: "млн без точки, тыс. с точкой"
+    reason_ru: "Можно автоматизировать вокруг чисел и единиц, но нужно не ломать табличные заголовки и сокращения в источниках."
+  - code: AUDIT-SLASH-UNIT-SPACES
+    status: planned
+    action: fix
+    title_ru: "Пробелы вокруг слеша в единицах"
+    reason_ru: "руб. / сут -> руб./сут, куб. м / ч -> куб. м/ч. Нужен закрытый список единиц."
+  - code: AUDIT-DASH-SPACED-HYPHEN
+    status: planned
+    action: suggest
+    title_ru: "Дефис/минус с пробелами между словами"
+    reason_ru: "Можно искать шаблон слово - слово, но нужна защита от диапазонов, формул и составных обозначений."
+  - code: AUDIT-CAPTION-FIGURE-TYPO
+    status: planned
+    action: fix
+    title_ru: "Опечатки в названиях рисунков, схем, диаграмм"
+    reason_ru: "Безопасно для типовых 'Рисунок. 1', 'Риснунок 1', но нужен список реальных опечаток из документов."
+
+ai_residual_rules:
+  - id: AI-NO-HALLUCINATION
+    title_ru: "Антигаллюцинация и запрет замечаний без опоры в тексте"
+    reason_ru: "Это инструкция поведения аудитора, а не правка документа."
+  - id: AI-RF-GRAMMAR
+    title_ru: "Замена РФ с выбором падежа и учётом цитат"
+    reason_ru: "Автомат может найти РФ, но не всегда выбрать 'Российская Федерация' или 'Российской Федерации'."
+  - id: AI-TYUMEN-GUARDRAIL
+    title_ru: "Не исправлять 'городской округ город Тюмень'"
+    reason_ru: "Нужна смысловая защита от ложного замечания, а не механическая правка."
+  - id: AI-TOPONYMS
+    title_ru: "Склонение топонимов"
+    reason_ru: "Требует грамматики, падежа и контекста."
+  - id: AI-NUMERIC-REALISM
+    title_ru: "Реалистичность чисел"
+    reason_ru: "Нужны предметные знания: население, площадь, соразмерность величин."
+  - id: AI-CHRONOLOGY
+    title_ru: "НПА из будущего и актуальность редакций"
+    reason_ru: "Требует знания дат актов и текущего контекста; офлайн-проект не должен угадывать."
+  - id: AI-AGREEMENT
+    title_ru: "Согласование и однородность списков"
+    reason_ru: "Требует синтаксического и смыслового анализа."
+  - id: AI-HIERARCHICAL-NUMBERING
+    title_ru: "Иерархическая нумерация пунктов, таблиц и рисунков"
+    reason_ru: "Часть можно сканировать, но реальная ошибка зависит от уровня, родителя и границ разделов."
+  - id: AI-TABLE-STRUCTURE
+    title_ru: "Смысловая структура таблиц"
+    reason_ru: "Объединённые ячейки и многоуровневые шапки допустимы; нужна интерпретация данных."
+  - id: AI-QUOTES
+    title_ru: "Кавычки в названиях, цитатах и источниках"
+    reason_ru: "Автоматическая унификация опасна для точных названий и цитат."
+  - id: AI-LEGAL-ACTS
+    title_ru: "Оформление НПА, ГОСТ, СП, СанПиН"
+    reason_ru: "Формат зависит от вида акта, официального названия, цитаты и источника."
+  - id: AI-BIBLIOGRAPHY
+    title_ru: "Библиография и сноски"
+    reason_ru: "Нужно понимать тип источника и повторность ссылок."
