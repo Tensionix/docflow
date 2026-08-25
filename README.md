@@ -8,7 +8,7 @@
 - [Direct download](https://audion.dev/get/docflow/2.0.1/Audion_DocFlow_v2.0.1_Full.zip) — unmetered, no rate limits
 - [Project page](https://audion.dev/downloads/docflow) — every version and how to install
 
-![The program window](docs/screenshot.png)
+<img src="docs/screenshot.png" alt="The program window" width="560">
 
 `SHA-256: 76430b3b9e2404f0fa6704ef167e766babf13d364da071fa3417f4aa5d70bc97`
 
