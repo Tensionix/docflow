@@ -1,14 +1,19 @@
 # Audion DocFlow (Portable)
 
 <!-- audion:release -->
-[![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0b6db8?style=flat-square&logo=windows&logoColor=white)](https://audion.dev/downloads/docflow) [![Release](https://img.shields.io/github/v/release/Tensionix/docflow?style=flat-square&label=release&color=e08a63)](https://github.com/Tensionix/docflow/releases/latest) [![Downloads](https://img.shields.io/github/downloads/Tensionix/docflow/total?style=flat-square&label=downloads&color=5fd08a)](https://github.com/Tensionix/docflow/releases) [![License](https://img.shields.io/github/license/Tensionix/docflow?style=flat-square&color=5fd08a&logo=apache&logoColor=white&cacheSeconds=3600)](https://github.com/Tensionix/docflow/blob/main/LICENSE)
+<p align="center">
+  <a href="https://audion.dev/downloads/docflow"><img alt="Windows" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0b6db8?style=flat-square&logo=windows&logoColor=white"></a>
+  <a href="https://github.com/Tensionix/docflow/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Tensionix/docflow?style=flat-square&label=release&color=e08a63"></a>
+  <a href="https://github.com/Tensionix/docflow/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/Tensionix/docflow/total?style=flat-square&label=downloads&color=5fd08a"></a>
+  <a href="https://github.com/Tensionix/docflow/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/Tensionix/docflow?style=flat-square&color=5fd08a&logo=apache&logoColor=white&cacheSeconds=3600"></a>
+</p>
 
 **Version 2.0.1** · 2026-08-25 · 211.8 MB
 
 - [Direct download](https://audion.dev/get/docflow/2.0.1/Audion_DocFlow_v2.0.1_Full.zip) — unmetered, no rate limits
 - [Project page](https://audion.dev/downloads/docflow) — every version and how to install
 
-<img src="docs/screenshot.png" alt="The program window" width="560">
+<p align="center"><img src="docs/screenshot.png" alt="The program window" width="560"></p>
 
 `SHA-256: 76430b3b9e2404f0fa6704ef167e766babf13d364da071fa3417f4aa5d70bc97`
 
