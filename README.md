@@ -8,14 +8,14 @@
   <a href="https://github.com/Tensionix/docflow/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/Tensionix/docflow?style=flat-square&color=5fd08a&logo=apache&logoColor=white&cacheSeconds=3600"></a>
 </p>
 
-**Version 2.0.2** · 2026-09-01 · 212.0 MB
+**Version 2.0.2** · 2026-09-01 · 5.4 MB
 
-- [Direct download](https://dl.audion.dev/docflow/2.0.2/Audion_DocFlow_v2.0.2_Full.zip) — unmetered, no rate limits
+- [Direct download](https://dl.audion.dev/docflow/2.0.2/Audion_DocFlow_v2.0.2.zip) — unmetered, no rate limits
 - [Project page](https://audion.dev/downloads/docflow) — every version and how to install
 
 <p align="center"><img src="docs/screenshot.png" alt="The program window" width="560"></p>
 
-`SHA-256: b96477466b7db6bcf982eb5f37e3d8ee23682f2ef5565a7ee12d0ef454db89b0`
+`SHA-256: 1f5afe920cbf6f982df62ff75c58d0f46122429f048ef2563e95101211fc190d`
 
 ---
 
