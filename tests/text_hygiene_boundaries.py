@@ -35,7 +35,7 @@ def test_text_hygiene_owns_mechanical_ranges() -> None:
 
 
 def test_text_hygiene_does_not_own_audit_dot_cases() -> None:
-    text = "12кв.м, 5куб.м, 100руб. г.Тюмень ул.Ленина табл.1 рис.2"
+    text = "12кв.м, 5куб.м, 100руб. г.Энск ул.Садовая табл.1 рис.2"
     scan_findings = scan_find_text_issues("word/document.xml", 3, text, check_dot=True)
     fix_findings = fix_find_text_issues("word/document.xml", 3, text, fix_dot=True)
     assert_true("missing_after_dot" not in classes(scan_findings), "scan не должен забирать audit/морфологические dot-cases")

@@ -325,20 +325,23 @@ def _deep_domain_boundaries() -> list[dict[str, object]]:
         {
             "domain": "document_styles",
             "title": "Стили документа",
-            "primary_module": "docx_style_processor",
+            "primary_module": "docx_restyle_by_template",
             "owns": [
-                "назначение существующих Word-стилей",
-                "распознавание заголовков, подписей и оглавления как стилевых объектов",
-                "согласованность стилевого слоя",
+                "перенос стилевой базы эталона: styles.xml, нумерация, тема, шрифты",
+                "разметку заголовков, подписей, перечней и текста по карте заголовков",
+                "сквозную нумерацию подписей и обновление ссылок на них",
+                "отсев неиспользуемых определений стилей",
+                "чистку XML: атрибуты ревизий, дробленые раны, пустые свойства",
             ],
             "does_not_own": [
                 "переписывание текста",
                 "исправление пунктуации и единиц",
                 "геометрию таблиц, секций и колонтитулов",
+                "составление самой карты заголовков - её пишет человек по разведке",
             ],
-            "scan_mode": "проверяет стилевой слой",
-            "fix_mode": "назначает только существующие стили по осторожным правилам",
-            "autofix_policy": "safe/conservative; без переписывания содержания",
+            "scan_mode": "разведка: плоский дамп документа, стили эталона по частоте, сводка по мусору и структуре",
+            "fix_mode": "переносит стилевую базу эталона и размечает документ по карте заголовков",
+            "autofix_policy": "без карты заголовков разметка не выполняется: переносится база и идёт чистка",
         },
         {
             "domain": "table_unifier",
@@ -1179,14 +1182,6 @@ def _two_input_files(
     return files[0], files[1]
 
 
-def _reference_args(context: JobContext) -> list[str]:
-    reference = _str_param(context, "reference_docx")
-    if not reference:
-        return []
-    path = _input_file(context, reference, (".docx",), "Эталон DOCX")
-    return ["--reference-docx", str(path)]
-
-
 def validate_input(context: JobContext) -> dict[str, object]:
     if not context.paths.input.exists():
         raise FileNotFoundError(f"Источник не найден: {context.paths.input}")
@@ -1921,17 +1916,86 @@ def docx_merge(context: JobContext) -> dict[str, object]:
     return _run_command(context, _python_command(context, "docx_merge.py", *args)) | {"out": str(out), "report": str(report)}
 
 
+def _restyle_template_arg(context: JobContext) -> list[str | Path]:
+    """The reference is opt-in: the checkbox decides, the field only names it."""
+    if not _bool_param(context, "use_reference", False):
+        return []
+    reference = _str_param(context, "reference_docx")
+    path = _input_file(context, reference, (".docx",), "Эталон DOCX")
+    return ["--template", path]
+
+
+def _restyle_config_arg(context: JobContext) -> list[str | Path]:
+    """The heading map is written by hand per pair of documents; without it the
+    transfer still moves the style base and cleans, it just marks nothing."""
+    value = _str_param(context, "style_config")
+    if not value:
+        return []
+    raw = Path(value).expanduser()
+    path = raw.resolve() if raw.is_absolute() else (context.paths.input / raw).resolve()
+    if not path.is_file():
+        raise FileNotFoundError(f"Карта заголовков: файл не найден: {path}")
+    return ["--config", path]
+
+
 def docx_style_scan(context: JobContext) -> dict[str, object]:
-    report = context.report_dir / "docx_style_processing.md"
-    args: list[str | Path] = ["--input", context.paths.input, "--outdir", context.paths.output / "style_processed", "--out", report, *_reference_args(context)]
-    return _run_command(context, _python_command(context, "docx_style_processor.py", *args)) | {"report": str(report)}
+    outdir = context.paths.output / "style_probe"
+    report = context.report_dir / "docx_style_probe.md"
+    json_report = context.report_dir / "docx_style_probe.json"
+    args: list[str | Path] = [
+        "--input", context.paths.input,
+        "--outdir", outdir,
+        "--report", report,
+        "--json-out", json_report,
+    ]
+    if _bool_param(context, "use_reference", False):
+        reference = _str_param(context, "reference_docx")
+        args += ["--template", _input_file(context, reference, (".docx",), "Эталон DOCX")]
+    return _run_command(context, _python_command(context, "docx_style_probe.py", *args)) | {
+        "outdir": str(outdir),
+        "report": str(report),
+        "json_report": str(json_report),
+    }
 
 
 def docx_style_fix(context: JobContext) -> dict[str, object]:
     outdir = context.paths.output / "style_processed"
-    report = context.report_dir / "docx_style_processing_fix.md"
-    args: list[str | Path] = ["--input", context.paths.input, "--outdir", outdir, "--out", report, "--fix", *_reference_args(context)]
-    return _run_command(context, _python_command(context, "docx_style_processor.py", *args)) | {"outdir": str(outdir), "report": str(report)}
+    report = context.report_dir / "docx_restyle.md"
+    json_report = context.report_dir / "docx_restyle.json"
+    args: list[str | Path] = [
+        "--input", context.paths.input,
+        "--outdir", outdir,
+        "--report", report,
+        "--json-out", json_report,
+        *_restyle_template_arg(context),
+        *_restyle_config_arg(context),
+    ]
+    return _run_command(context, _python_command(context, "docx_restyle_by_template.py", *args)) | {
+        "outdir": str(outdir),
+        "report": str(report),
+        "json_report": str(json_report),
+    }
+
+
+def docx_xml_cleanup(context: JobContext) -> dict[str, object]:
+    """Cleanup alone: revision attributes, split runs, empty properties, broken
+    paragraphs, fixed table layout and thousands of unused style clones. Styles
+    stay as they are, run properties are untouched, so colours survive."""
+    outdir = context.paths.output / "xml_cleaned"
+    report = context.report_dir / "docx_xml_cleanup.md"
+    json_report = context.report_dir / "docx_xml_cleanup.json"
+    args: list[str | Path] = [
+        "--input", context.paths.input,
+        "--outdir", outdir,
+        "--report", report,
+        "--json-out", json_report,
+        "--clean-only",
+    ]
+    return _run_command(context, _python_command(context, "docx_restyle_by_template.py", *args)) | {
+        "outdir": str(outdir),
+        "report": str(report),
+        "json_report": str(json_report),
+    }
 
 
 def docx_extract_tables(context: JobContext) -> dict[str, object]:

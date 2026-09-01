@@ -109,7 +109,7 @@ operation_groups:
       field_group: hygiene_run
       group_title: Text hygiene parameters
       group_title_ru: Параметры текстовой гигиены
-      hint_ru: Расширенная эвристика, выключена по умолчанию. Общее правило пропускает сокращения и единицы вроде кв.м, куб.м, руб., г.Тюмень, ул.Ленина; их должны находить и исправлять правила аудита или морфология с учётом контекста.
+      hint_ru: Расширенная эвристика, выключена по умолчанию. Общее правило пропускает сокращения и единицы вроде кв.м, куб.м, руб., а также «г.» и «ул.» перед названием; их должны находить и исправлять правила аудита или морфология с учётом контекста.
     - id: deep_hygiene_remove_strikethrough
       type: checkbox
       label: Remove strikethrough text
@@ -138,41 +138,71 @@ operation_groups:
       group_title_ru: Параметры текстовой гигиены
       hint_ru: Запускает второй проход по форматным аномалиям. Текстовая гигиена отвечает за видимый текст, аномалии - за структуру и форматирование; в корректировке аномалии работают поверх копий, уже исправленных текстовой гигиеной.
   - id: docx_style_scan
-    title: 'Style processing: scan'
-    title_ru: Проверка стилей DOCX
-    description: Find headings, captions, TOC markers, sections, and style consistency issues.
-    description_ru: Найти заголовки, названия таблиц/рисунков, оглавление, секции и стилевые проблемы.
+    title: 'Style transfer: survey'
+    title_ru: Разведка стилей DOCX
+    description: Dump each document block by block, list the reference styles by how often they are applied, and summarise what survived.
+    description_ru: Выгрузить документ блок за блоком, показать стили эталона по частоте применения и свести, что уцелело.
     service: system_core.services.office_service:docx_style_scan
     kind: safe
     fields:
+    - id: use_reference
+      type: checkbox
+      label: Take the style base from a reference DOCX
+      label_ru: Взять стили с эталона
+      default: false
+      field_group: style_reference
+      group_title: Reference
+      group_title_ru: Эталон
+      hint_ru: Выключено - документ обрабатывается своими стилями. Включено - из эталона переносятся
+        styles.xml, нумерация, тема и шрифты, а титульный лист клонируется поячеечно. Эталон должен
+        быть структурно однотипен с документом, иначе разметка ляжет мимо.
     - id: reference_docx
       type: text
       label: Reference DOCX
-      label_ru: Эталон стилей DOCX
+      label_ru: Файл эталона
       default: ''
       field_group: style_reference
+      group_title: Reference
       group_title_ru: Эталон
-      group_description_ru: Необязательный DOCX с вручную назначенными нужными стилями.
-      hint_ru: 'Необязательно. DOCX из input, где нужные стили уже назначены вручную: заголовки, подписи, оглавление, приложения
-        и списки. Например: Каскаринское СП ОМ Эталон.docx'
+      hint_ru: Имя файла в input или полный путь. Читается только при включённой галочке выше.
+        Сам эталон из обработки исключается. Пусто - берётся первый DOCX из input.
   - id: docx_style_fix
-    title: 'Style processing: fix'
-    title_ru: Исправление стилей DOCX
-    description: Conservatively assign existing styles to recognizable headings, captions, and TOC titles.
-    description_ru: Осторожно назначить существующие стили для распознанных заголовков, подписей и оглавления.
+    title: 'Style transfer: apply'
+    title_ru: Перенос стилей DOCX
+    description: Move the reference style base onto the document and mark it up by the heading map; without the map it transfers the base and cleans only.
+    description_ru: Перенести стилевую базу эталона на документ и разметить его по карте заголовков; без карты переносится только база и выполняется чистка.
     service: system_core.services.office_service:docx_style_fix
     kind: safe
     fields:
+    - id: use_reference
+      type: checkbox
+      label: Take the style base from a reference DOCX
+      label_ru: Взять стили с эталона
+      default: false
+      field_group: style_reference
+      group_title: Reference
+      group_title_ru: Эталон
+      hint_ru: Выключено - документ обрабатывается своими стилями. Включено - из эталона переносятся
+        styles.xml, нумерация, тема и шрифты, а титульный лист клонируется поячеечно. Эталон должен
+        быть структурно однотипен с документом, иначе разметка ляжет мимо.
     - id: reference_docx
       type: text
       label: Reference DOCX
-      label_ru: Эталон стилей DOCX
+      label_ru: Файл эталона
       default: ''
       field_group: style_reference
+      group_title: Reference
       group_title_ru: Эталон
-      group_description_ru: Необязательный DOCX с вручную назначенными нужными стилями.
-      hint_ru: 'Необязательно. DOCX из input, где нужные стили уже назначены вручную: заголовки, подписи, оглавление, приложения
-        и списки. Например: Каскаринское СП ОМ Эталон.docx'
+      hint_ru: Имя файла в input или полный путь. Читается только при включённой галочке выше.
+        Сам эталон из обработки исключается. Пусто - берётся первый DOCX из input.
+    - id: style_config
+      type: text
+      label: Heading map (JSON)
+      label_ru: Карта заголовков (JSON)
+      default: ''
+      hint_ru: Имя файла в input или полный путь. Задаёт уровни заголовков, правила подписей и перечней,
+        стили текста и таблиц. Составляется руками по разведке - без него заголовки и подписи не трогаются,
+        документ получит только стилевую базу и чистку.
   - id: docx_text_hygiene_scan
     title: Text hygiene scan
     title_ru: 'Гигиена текста: проверка'
@@ -186,7 +216,7 @@ operation_groups:
       label: Check dot spacing
       label_ru: Проверять пробел после точки (эвристика)
       default: false
-      hint_ru: Расширенная эвристика. Общая проверка пропускает типовые сокращения и единицы вроде кв.м, куб.м, руб., г.Тюмень, ул.Ленина; эти случаи относятся к правилам аудита или морфологии.
+      hint_ru: Расширенная эвристика. Общая проверка пропускает типовые сокращения и единицы вроде кв.м, куб.м, руб., а также «г.» и «ул.» перед названием; эти случаи относятся к правилам аудита или морфологии.
   - id: docx_text_hygiene_fix
     title: Text hygiene fix
     title_ru: 'Гигиена текста: исправить'
@@ -200,7 +230,7 @@ operation_groups:
       label: Fix dot spacing
       label_ru: Исправлять пробел после точки (эвристика)
       default: false
-      hint_ru: Расширенная безопасная правка. Общее правило пропускает типовые сокращения и единицы вроде кв.м, куб.м, руб., г.Тюмень, ул.Ленина; исправлять их должен слой правил аудита или морфологический слой.
+      hint_ru: Расширенная безопасная правка. Общее правило пропускает типовые сокращения и единицы вроде кв.м, куб.м, руб., а также «г.» и «ул.» перед названием; исправлять их должен слой правил аудита или морфологический слой.
     - id: remove_strikethrough
       type: checkbox
       label: Remove strikethrough text
@@ -352,6 +382,17 @@ operation_groups:
     description_ru: Осторожно удалить мягкие переносы из копий DOCX, не трогая пробелы, табы, разрывы, видимые дефисы и управляющие переносами символы.
     service: system_core.services.office_service:docx_nonprinting_clean
     kind: safe
+  - id: docx_xml_cleanup
+    title: Clean DOCX XML
+    title_ru: Чистка XML документа
+    description: Strip revision attributes, merge split runs, drop empty properties, rejoin broken paragraphs, fix table layout and prune unused style clones.
+    description_ru: Снять атрибуты ревизий, слить раздробленные фрагменты, убрать пустые свойства, склеить разорванные абзацы, зафиксировать раскладку таблиц и отсеять неиспользуемые клоны стилей.
+    service: system_core.services.office_service:docx_xml_cleanup
+    kind: safe
+    hint_ru: Вид документа не меняется - стили остаются свои, свойства текста не трогаются, поэтому цвета,
+      выделения и заливки сохраняются. Типичный эффект на многостраничной записке - файл втрое легче и
+      перестаёт тормозить. Единственное, что меняет содержание, - склейка разорванных абзацев; все склейки
+      перечислены в отчёте.
 - id: find_replace
   title: Find and replace
   title_ru: Найти и заменить
