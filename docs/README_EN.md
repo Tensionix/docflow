@@ -2,6 +2,17 @@
 
 [Русский](README_RU.md) · [User Guide](USER_GUIDE_EN.md)
 
+**Contents**
+
+- [Why It Exists](#why-it-exists)
+- [Principles](#principles)
+- [What It Can Do](#what-it-can-do)
+- [About Morphological Search](#about-morphological-search)
+- [Next](#next)
+- [Technical Reference](#technical-reference)
+  - [Layout](#layout)
+  - [Offline](#offline)
+
 Predictable cleaning and checking of Word documents, spreadsheets, CSV, and
 markup. Works entirely offline.
 

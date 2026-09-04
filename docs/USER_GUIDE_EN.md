@@ -1,5 +1,22 @@
 # Audion DocFlow (Portable)
 
+**Contents**
+
+- [What it does](#what-it-does)
+- [Launchers](#launchers)
+- [Recommended workflow](#recommended-workflow)
+- [Reports and UI language](#reports-and-ui-language)
+- [Smoke Tests](#smoke-tests)
+- [Project layout](#project-layout)
+- [Notes](#notes)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
+- [Canonical Workbench labels](#canonical-workbench-labels)
+- [Production Workflow](#production-workflow)
+- [Folder Runs](#folder-runs)
+- [Reports And Recovery](#reports-and-recovery)
+- [Final Review](#final-review)
+
 A portable, offline-friendly toolkit for deterministic document cleanup, compliance gating, and table helpers around **DOCX**, **XLSX**, **CSV**, and **Markdown**.
 
 The project is designed for a stable portable workflow:

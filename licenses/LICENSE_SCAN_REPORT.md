@@ -1,13 +1,13 @@
 # Audion Build Licenses Scan Report
 
 - Project: **Audion DocFlow** (`audion-docflow`)
-- Run: `20260901T043259Z_audion-docflow_6480b765`
+- Run: `20260904T022643Z_audion-docflow_cd2dac21`
 - Project root: `S:\Release\Audion DocFlow`
 - Scan root: `S:\Release\Audion DocFlow`
 - Output: `S:\Release\Audion DocFlow\licenses`
 - Status: **PASS**
-- Components: 83
-- Bundled: 83
+- Components: 84
+- Bundled: 84
 - Optional runtime: 0
 
 ## Issues
@@ -24,7 +24,7 @@ No issues detected.
 | aiosignal | `VERSION_OR_ARTIFACT_CHANGED_LICENSE_SAME` | 1.4.0 | 1.4.0 |
 | annotated-doc | `VERSION_OR_ARTIFACT_CHANGED_LICENSE_SAME` | 0.0.5 | 0.0.5 |
 | annotated-types | `VERSION_OR_ARTIFACT_CHANGED_LICENSE_SAME` | 0.8.0 | 0.8.0 |
-| anyio | `VERSION_OR_ARTIFACT_CHANGED_LICENSE_SAME` | 4.14.2 | 4.14.2 |
+| anyio | `VERSION_OR_ARTIFACT_CHANGED_LICENSE_SAME` | 4.15.0 | 4.15.0 |
 | attrs | `VERSION_OR_ARTIFACT_CHANGED_LICENSE_SAME` | 26.1.0 | 26.1.0 |
 | beautifulsoup4 | `VERSION_OR_ARTIFACT_CHANGED_LICENSE_SAME` | 4.15.0 | 4.15.0 |
 | bidict | `VERSION_OR_ARTIFACT_CHANGED_LICENSE_SAME` | 0.24.1 | 0.24.1 |
@@ -51,7 +51,7 @@ No issues detected.
 | iniconfig | `VERSION_OR_ARTIFACT_CHANGED_LICENSE_SAME` | 2.3.0 | 2.3.0 |
 | itsdangerous | `VERSION_OR_ARTIFACT_CHANGED_LICENSE_SAME` | 2.2.0 | 2.2.0 |
 | Jinja2 | `VERSION_OR_ARTIFACT_CHANGED_LICENSE_SAME` | 3.1.6 | 3.1.6 |
-| lxml | `VERSION_OR_ARTIFACT_CHANGED_LICENSE_SAME` | 6.1.2 | 6.1.2 |
+| lxml | `VERSION_OR_ARTIFACT_CHANGED_LICENSE_SAME` | 6.1.3 | 6.1.3 |
 | markdown-it-py | `VERSION_OR_ARTIFACT_CHANGED_LICENSE_SAME` | 4.2.0 | 4.2.0 |
 | markdown2 | `VERSION_OR_ARTIFACT_CHANGED_LICENSE_SAME` | 2.5.5 | 2.5.5 |
 | MarkupSafe | `VERSION_OR_ARTIFACT_CHANGED_LICENSE_SAME` | 3.0.3 | 3.0.3 |
@@ -66,6 +66,7 @@ No issues detected.
 | pluggy | `VERSION_OR_ARTIFACT_CHANGED_LICENSE_SAME` | 1.6.0 | 1.6.0 |
 | PowerShell | `UNCHANGED` | portable | portable |
 | propcache | `VERSION_OR_ARTIFACT_CHANGED_LICENSE_SAME` | 0.5.2 | 0.5.2 |
+| proxy_tools | `VERSION_OR_ARTIFACT_CHANGED_LICENSE_SAME` | 0.1.0 | 0.1.0 |
 | pycparser | `VERSION_OR_ARTIFACT_CHANGED_LICENSE_SAME` | 3.0 | 3.0 |
 | pydantic | `VERSION_OR_ARTIFACT_CHANGED_LICENSE_SAME` | 2.13.5 | 2.13.5 |
 | pydantic_core | `VERSION_OR_ARTIFACT_CHANGED_LICENSE_SAME` | 2.46.5 | 2.46.5 |

@@ -10,7 +10,7 @@
 
 **Version 2.0.2** · 2026-09-04 · 212.2 MB
 
-- [Direct download](https://dl.audion.dev/docflow/2.0.2/Audion_DocFlow_v2.0.2_Full.zip) — unmetered, no rate limits
+- [Direct download](https://audion.dev/get/docflow/2.0.2/Audion_DocFlow_v2.0.2_Full.zip) — unmetered, no rate limits
 - [Project page](https://audion.dev/downloads/docflow) — every version and how to install
 
 <p align="center"><img src="docs/screenshot.png" alt="The program window" width="560"></p>
@@ -23,7 +23,16 @@ An **Audion** tool, published by [Tensionix](https://github.com/Tensionix).
 <!-- /audion:release -->
 
 
-[Русский](README_RU.md) · [User Guide](USER_GUIDE_EN.md)
+[Русский](Docs/README_RU.md) · [User Guide](Docs/USER_GUIDE_EN.md)
+
+**Contents**
+
+- [Why It Exists](#why-it-exists)
+- [Principles](#principles)
+- [What It Can Do](#what-it-can-do)
+- [About Morphological Search](#about-morphological-search)
+- [Next](#next)
+- [Technical Reference](#technical-reference)
 
 Predictable cleaning and checking of Word documents, spreadsheets, CSV, and
 markup. Works entirely offline.
@@ -88,7 +97,7 @@ stop.
 
 ## Next
 
-* [User Guide](USER_GUIDE_EN.md) — step by step.
+* [User Guide](Docs/USER_GUIDE_EN.md) — step by step.
 
 ---
 
