@@ -315,3 +315,21 @@ def disable_track_revisions(settings_xml: bytes) -> bytes:
         if parent is not None:
             parent.remove(el)
     return _etree_to_bytes(tree)
+
+
+STRICT_OOXML_WORD_NAMESPACE = b"http://purl.oclc.org/ooxml/wordprocessingml/main"
+
+
+def is_strict_ooxml(path) -> bool:
+    """True for a DOCX that Word saved as "Strict Open XML".
+
+    Its XML lives in the purl.oclc.org namespaces while every tool here reads the
+    ordinary (transitional) ones, so such a file has to be resaved as a plain DOCX.
+    """
+    try:
+        with zipfile.ZipFile(str(path)) as archive:
+            with archive.open("word/document.xml") as part:
+                head = part.read(65536)
+    except (KeyError, OSError, zipfile.BadZipFile):
+        return False
+    return STRICT_OOXML_WORD_NAMESPACE in head

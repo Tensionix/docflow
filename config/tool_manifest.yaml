@@ -27,8 +27,8 @@ operation_groups:
   - id: docx_audit_processor
     title: Audit processor
     title_ru: Аудит правил DOCX
-    description: Scan and safely fix deterministic corporate writing rules.
-    description_ru: 'Найти и безопасно исправить правила аудита: кв. м, №, %, градусы, даты и похожие случаи.'
+    description: Scan and safely fix the rules from config/rules - units, number sign, dates, abbreviations, acronyms, addresses.
+    description_ru: 'Найти и безопасно исправить правила из config/rules: единицы, №, даты, сокращения, аббревиатуры, адреса.'
     service: system_core.services.office_service:docx_audit_processor
     kind: safe
     fields:
@@ -38,17 +38,93 @@ operation_groups:
       label_ru: Создать DOCX с якорями
       default: true
       span: full
+      field_group: audit_run
+      group_title: Run
+      group_title_ru: Запуск
       hint_ru: В output/audit_annotated создаются копии *__annotated.docx. Якоря показывают места правил до исправления.
     - id: apply_fixes
       type: checkbox
       label: Apply safe fixes
       label_ru: Применить безопасные правки
       default: false
+      field_group: audit_run
+      group_title: Run
+      group_title_ru: Запуск
     - id: dry_run
       type: checkbox
       label: Dry-run
       label_ru: Пробный запуск без записи DOCX
       default: false
+      field_group: audit_run
+      group_title: Run
+      group_title_ru: Запуск
+    - id: rules_units
+      type: checkbox
+      label: Units, percent, degrees
+      label_ru: Единицы, % и °
+      default: true
+      field_group: audit_rule_files
+      group_title: Rule files
+      group_title_ru: Файлы правил
+      hint: "config/rules/units.yaml: кв. м, куб. м, a space between a number and its unit, percent and degrees by the norm below."
+      hint_ru: "config/rules/units.yaml: кв. м, куб. м, пробел между числом и единицей, проценты и градусы по норме ниже."
+    - id: rules_house
+      type: checkbox
+      label: Number sign, dates, captions
+      label_ru: №, даты, подписи
+      default: true
+      field_group: audit_rule_files
+      group_title: Rule files
+      group_title_ru: Файлы правил
+      hint: "config/rules/house.yaml: № 1, a full date without г., typos in table and figure captions."
+      hint_ru: "config/rules/house.yaml: № 1, полная дата без «г.», опечатки в подписях таблиц и рисунков."
+    - id: rules_abbreviations
+      type: checkbox
+      label: Abbreviations
+      label_ru: Сокращения
+      default: true
+      field_group: audit_rule_files
+      group_title: Rule files
+      group_title_ru: Файлы правил
+      hint: "config/rules/abbreviations.yaml: т. е., млн, тыс., руб., 2020 г., п. 3.1. Report only until checked on real notes."
+      hint_ru: "config/rules/abbreviations.yaml: т. е., млн, тыс., руб., 2020 г., п. 3.1. Только в отчёт, пока не проверены на записках."
+    - id: rules_acronyms
+      type: checkbox
+      label: Acronyms
+      label_ru: Аббревиатуры
+      default: true
+      field_group: audit_rule_files
+      group_title: Rule files
+      group_title_ru: Файлы правил
+      hint: "config/rules/acronyms.yaml: РФ, ГОСТ, СНиП, СанПиН, ФЗ. Report only: the case and the spelling are for a person."
+      hint_ru: "config/rules/acronyms.yaml: РФ, ГОСТ, СНиП, СанПиН, ФЗ. Только в отчёт: падеж и написание решает человек."
+    - id: rules_addresses
+      type: checkbox
+      label: Address fixes
+      label_ru: Исправления адресов
+      default: false
+      field_group: audit_rule_files
+      group_title: Rule files
+      group_title_ru: Файлы правил
+      hint: "config/rules/addresses.yaml: abbreviations and spaces in addresses the way the Address Processor engine writes them - п. Московский, ул. Новая, д. 1б; ст-ца, х., пр-кт, к. Names, numbers and inflection stay as written. Report only for now."
+      hint_ru: "config/rules/addresses.yaml: сокращения и пробелы в адресах так, как их пишет адресный движок Address Processor - п. Московский, ул. Новая, д. 1б; ст-ца, х., пр-кт, к. Названия, номера и падежи не меняются. Пока только в отчёт."
+    - id: audit_norm
+      type: radio
+      label: Percent and degrees
+      label_ru: Проценты и градусы
+      default: rules
+      field_group: audit_norm
+      group_title: Norm
+      group_title_ru: Норма
+      hint: "RULES: 50%, 5°C without a space - the house norm. GOST: 50 %, 20 °С with a non-breaking space, an angle 20° without one."
+      hint_ru: "ПРАВИЛА: 50%, 5°C без пробела - норма проекта. ГОСТ: 50 %, 20 °С через неразрывный пробел, угол 20° слитно."
+      options:
+      - value: rules
+        label: RULES
+        label_ru: ПРАВИЛА
+      - value: gost
+        label: GOST
+        label_ru: ГОСТ
   - id: docx_audit_strip_anchors
     title: Remove DOCX audit anchors
     title_ru: Снять якоря DOCX
@@ -109,7 +185,7 @@ operation_groups:
       field_group: hygiene_run
       group_title: Text hygiene parameters
       group_title_ru: Параметры текстовой гигиены
-      hint_ru: Расширенная эвристика, выключена по умолчанию. Общее правило пропускает сокращения и единицы вроде кв.м, куб.м, руб., а также «г.» и «ул.» перед названием; их должны находить и исправлять правила аудита или морфология с учётом контекста.
+      hint_ru: Расширенная эвристика, выключена по умолчанию. Общее правило пропускает сокращения и единицы вроде кв.м, куб.м, руб., а также «г.» и «ул.» перед названием; марки и коды латиницей (P61M-PR.S.RU.A) и сокращения реестра (т у.т., м.п., у.е.) не разбиваются. Сокращения находят и исправляют правила аудита.
     - id: deep_hygiene_remove_strikethrough
       type: checkbox
       label: Remove strikethrough text
@@ -393,6 +469,260 @@ operation_groups:
       выделения и заливки сохраняются. Типичный эффект на многостраничной записке - файл втрое легче и
       перестаёт тормозить. Единственное, что меняет содержание, - склейка разорванных абзацев; все склейки
       перечислены в отчёте.
+- id: docx_format_documents
+  title: Document formatting
+  title_ru: ФОРМАТИРОВАНИЕ ДОКУМЕНТОВ
+  description: "One pass that brings documents to a standard: hygiene first, styles, house standard and tables, hygiene last."
+  description_ru: "Один проход приводит документы к стандарту: гигиена в начале, стили, стандарт оформления и таблицы, гигиена в конце."
+  service: system_core.services.office_service:docx_format_documents
+  kind: safe
+  fields:
+  - id: before_accept_changes
+    type: checkbox
+    label: Accept tracked changes
+    label_ru: Принять исправления
+    default: false
+    field_group: format_before
+    group_title: Before formatting
+    group_title_ru: Перед форматированием
+    hint_ru: "Меняет содержание: правки рецензирования становятся текстом. Поэтому выключено по умолчанию."
+  - id: before_strip_comments
+    type: checkbox
+    label: Remove comments
+    label_ru: Удалить комментарии
+    default: false
+    field_group: format_before
+    group_title: Before formatting
+    group_title_ru: Перед форматированием
+    hint_ru: "Примечания рецензентов удаляются из копий документов."
+  - id: before_nonprinting
+    type: checkbox
+    label: Remove nonprinting garbage
+    label_ru: Удалить непечатаемый мусор
+    default: true
+    field_group: format_before
+    group_title: Before formatting
+    group_title_ru: Перед форматированием
+    hint_ru: "Мягкие переносы, оставшиеся от прежней вёрстки. Вид документа не меняется."
+  - id: before_xml_cleanup
+    type: checkbox
+    label: Clean the XML
+    label_ru: Чистка XML
+    default: true
+    field_group: format_before
+    group_title: Before formatting
+    group_title_ru: Перед форматированием
+    hint_ru: "Атрибуты ревизий, дробленые фрагменты, пустые свойства, клоны стилей. Если стили переносятся с эталона, чистка идёт внутри переноса и отдельным шагом не повторяется."
+  - id: before_anomalies
+    type: checkbox
+    label: Correct layout anomalies
+    label_ru: Корректировка аномалий
+    default: true
+    field_group: format_before
+    group_title: Before formatting
+    group_title_ru: Перед форматированием
+    hint_ru: "Повторы пустых абзацев сводятся к одному, у строк таблиц снимается жёсткая высота, в ячейках разрешается перенос текста. Текст документа не меняется."
+  - id: use_reference
+    type: checkbox
+    label: Take the style base from a reference DOCX
+    label_ru: Взять стили с эталона
+    default: false
+    field_group: format_styles
+    group_title: Styles
+    group_title_ru: Стили
+    hint_ru: "Выключено - стили документа остаются свои. Включено - из эталона переносятся стили, нумерация, тема и шрифты. Сам эталон не форматируется."
+  - id: reference_docx
+    type: text
+    label: Reference DOCX
+    label_ru: Файл эталона
+    default: ''
+    field_group: format_styles
+    group_title: Styles
+    group_title_ru: Стили
+    hint_ru: "Имя файла в input или полный путь. Читается только при включённой галочке выше. Пусто - первый DOCX из input."
+  - id: style_config
+    type: text
+    label: Heading map (JSON)
+    label_ru: Карта заголовков (JSON)
+    default: ''
+    field_group: format_styles
+    group_title: Styles
+    group_title_ru: Стили
+    hint_ru: "Необязательно. Имя файла в input или полный путь. Без карты заголовки и подписи не размечаются."
+  - id: apply_standard
+    type: checkbox
+    label: Apply the house standard
+    label_ru: Применить стандарт оформления
+    default: true
+    field_group: format_standard
+    group_title: House standard
+    group_title_ru: Стандарт оформления
+    hint_ru: "Поля на всех листах: на A3 как на книжном, на альбомном A4 повёрнутые вместе с листом; шрифт во всём тексте и стилях, кроме символьных шрифтов маркеров; кегль основного текста и таблиц. Заголовки и оглавление сохраняют свой кегль."
+  - id: standard_margin_top_cm
+    type: number
+    label: Top margin, cm
+    label_ru: Поле сверху, см
+    default: 2
+    min: 0
+    max: 10
+    step: 0.1
+    field_group: format_standard
+    group_title: House standard
+    group_title_ru: Стандарт оформления
+    hint_ru: "Для книжного листа и A3, который продолжает лист вправо. Альбомный A4 повёрнут в переплёт, у него это поле снизу."
+  - id: standard_margin_bottom_cm
+    type: number
+    label: Bottom margin, cm
+    label_ru: Поле снизу, см
+    default: 2
+    min: 0
+    max: 10
+    step: 0.1
+    field_group: format_standard
+    group_title: House standard
+    group_title_ru: Стандарт оформления
+    hint_ru: "Для книжного листа и A3, который продолжает лист вправо. Альбомный A4 повёрнут в переплёт, у него это поле снизу."
+  - id: standard_margin_left_cm
+    type: number
+    label: Left margin, cm
+    label_ru: Поле слева, см
+    default: 2
+    min: 0
+    max: 10
+    step: 0.1
+    field_group: format_standard
+    group_title: House standard
+    group_title_ru: Стандарт оформления
+    hint_ru: "Для книжного листа и A3, который продолжает лист вправо. Альбомный A4 повёрнут в переплёт, у него это поле снизу."
+  - id: standard_margin_right_cm
+    type: number
+    label: Right margin, cm
+    label_ru: Поле справа, см
+    default: 1.5
+    min: 0
+    max: 10
+    step: 0.1
+    field_group: format_standard
+    group_title: House standard
+    group_title_ru: Стандарт оформления
+    hint_ru: "Для книжного листа и A3, который продолжает лист вправо. Альбомный A4 повёрнут в переплёт, у него это поле снизу."
+  - id: standard_font
+    type: text
+    label: Font
+    label_ru: Шрифт
+    default: Tahoma
+    field_group: format_standard
+    group_title: House standard
+    group_title_ru: Стандарт оформления
+    hint_ru: "Ставится всему тексту и стилям. Символьные шрифты маркеров и значков не заменяются."
+  - id: standard_body_size
+    type: number
+    label: Body text size, pt
+    label_ru: Кегль текста, пт
+    default: 12
+    min: 6
+    max: 36
+    step: 0.5
+    field_group: format_standard
+    group_title: House standard
+    group_title_ru: Стандарт оформления
+    hint_ru: "Основной текст вне таблиц. Заголовки и оглавление сохраняют свой кегль."
+  - id: standard_table_size
+    type: number
+    label: Table text size, pt
+    label_ru: Кегль таблиц, пт
+    default: 10
+    min: 6
+    max: 36
+    step: 0.5
+    field_group: format_standard
+    group_title: House standard
+    group_title_ru: Стандарт оформления
+    hint_ru: "Весь текст таблиц, если таблица помещается в лист."
+  - id: standard_table_overflow_size
+    type: number
+    label: Tight table size, pt
+    label_ru: Кегль тесных таблиц, пт
+    default: 9
+    min: 5
+    max: 36
+    step: 0.5
+    field_group: format_standard
+    group_title: House standard
+    group_title_ru: Стандарт оформления
+    hint_ru: "Для таблицы, которая не помещается даже при самой узкой раскладке: самые длинные слова колонок при кегле таблиц шире места между полями."
+  - id: tables_fit_to_margins
+    type: checkbox
+    label: Fit tables to the margins
+    label_ru: Подогнать таблицы под поля
+    default: true
+    field_group: format_tables
+    group_title: Tables
+    group_title_ru: Таблицы
+    hint_ru: "Ширина каждой таблицы подгоняется под поля своего раздела. Таблица, вылезающая за поля, втискивается всегда - даже на титуле и из одной строки. Узкие таблицы до трёх колонок не растягиваются."
+  - id: after_text_hygiene
+    type: checkbox
+    label: Fix text hygiene
+    label_ru: Гигиена текста
+    default: false
+    field_group: format_after
+    group_title: After formatting
+    group_title_ru: После форматирования
+    hint_ru: "Лишние пробелы и пробелы у знаков препинания. Меняет видимый текст, поэтому выключено по умолчанию."
+  - id: after_text_hygiene_dot
+    type: checkbox
+    label: Space after a full stop
+    label_ru: Пробел после точки
+    default: false
+    field_group: format_after
+    group_title: After formatting
+    group_title_ru: После форматирования
+    hint_ru: "Эвристика гигиены текста: сокращения и единицы вроде кв.м, руб., «г.» и «ул.» пропускаются, марки и коды латиницей (P61M-PR.S.RU.A) и сокращения реестра (т у.т., м.п., у.е.) не разбиваются. Работает только вместе с галочкой «Гигиена текста»."
+  - id: after_remove_strikethrough
+    type: checkbox
+    label: Remove strikethrough text
+    label_ru: Удалить зачёркнутый текст
+    default: false
+    field_group: format_after
+    group_title: After formatting
+    group_title_ru: После форматирования
+    hint_ru: "Меняет содержание документа. Работает только вместе с галочкой «Гигиена текста»."
+  - id: after_audit_fix
+    type: checkbox
+    label: Fix units, numbers, percent, degrees, dates
+    label_ru: Единицы, №, %, градусы, даты
+    default: false
+    field_group: format_after
+    group_title: After formatting
+    group_title_ru: После форматирования
+    hint: "Rule files from config/rules: кв. м and куб. м, a space between a number and its unit, percent and degrees by the norm, the number sign, г. after dates, caption typos. Abbreviations and acronyms only go to the step report. Changes visible text, so it is off by default."
+    hint_ru: "Файлы правил из config/rules: кв. м и куб. м, пробел между числом и единицей, проценты и градусы по норме, знак номера, «г.» у дат, опечатки в подписях таблиц. Сокращения и аббревиатуры пока только в отчёт шага. Меняет видимый текст, поэтому выключено по умолчанию."
+  - id: after_audit_norm
+    type: radio
+    label: Percent and degrees
+    label_ru: Проценты и градусы
+    default: rules
+    field_group: format_after
+    group_title: After formatting
+    group_title_ru: После форматирования
+    hint: "For the rules checkbox above. RULES: 50%, 5°C without a space. GOST: 50 %, 20 °С with a non-breaking space, an angle 20° without one."
+    hint_ru: "Для галочки «Единицы, №, %, градусы, даты». ПРАВИЛА: 50%, 5°C без пробела. ГОСТ: 50 %, 20 °С через неразрывный пробел, угол 20° слитно."
+    options:
+    - value: rules
+      label: RULES
+      label_ru: ПРАВИЛА
+    - value: gost
+      label: GOST
+      label_ru: ГОСТ
+  - id: after_finalize_black
+    type: checkbox
+    label: Make all text black
+    label_ru: Чёрный текст
+    default: false
+    field_group: format_after
+    group_title: After formatting
+    group_title_ru: После форматирования
+    hint_ru: "Текст становится чёрным, выделения и заливки снимаются. Цветовые пометки пропадут."
 - id: find_replace
   title: Find and replace
   title_ru: Найти и заменить
@@ -1323,19 +1653,13 @@ operation_groups:
     description_ru: Поставить поля ячеек таблиц DOCX в 0,1 см и сбросить доступные текстовые отступы XLSX.
     service: system_core.services.office_service:table_cell_margins
     kind: safe
-- id: checks
-  title: Checks
-  title_ru: Проверки
-  description: Input and dependency diagnostics.
-  description_ru: Проверка input и зависимостей.
-  children:
-  - id: validate_input
-    title: Validate input
-    title_ru: Проверить input
-    description: Inventory all staged input files.
-    description_ru: Посчитать все файлы в input.
-    service: system_core.services.office_service:validate_input
-    kind: safe
+- id: validate_input
+  title: Validate input
+  title_ru: Проверить input
+  description: Inventory all staged input files.
+  description_ru: Посчитать все файлы в input.
+  service: system_core.services.office_service:validate_input
+  kind: safe
 maintenance_operations:
 - id: cleanup_input_output
   title: Clear I/O

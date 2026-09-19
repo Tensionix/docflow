@@ -11,6 +11,7 @@ import sys
 from docx import Document
 
 from system_core.core.jobs import JobContext, iter_subprocess_lines, popen_gui_command, unbuffer_python_command
+from system_core.docx_xml_tools import is_strict_ooxml
 
 
 SCRIPT_RUNNER = (
@@ -1690,6 +1691,25 @@ def morph_replace(context: JobContext) -> dict[str, object]:
     }
 
 
+# One checkbox per rule file in config/rules; the addresses file is off by default.
+AUDIT_RULE_SET_FIELDS = (
+    ("units", "rules_units", True),
+    ("house", "rules_house", True),
+    ("abbreviations", "rules_abbreviations", True),
+    ("acronyms", "rules_acronyms", True),
+    ("addresses", "rules_addresses", False),
+)
+AUDIT_NORMS = ("rules", "gost")
+
+
+def _audit_norm(context: JobContext, name: str) -> str:
+    """Percent and degrees: rules (50%, 5°C) or gost (50 %, 20 °С)."""
+    norm = _str_param(context, name, "rules") or "rules"
+    if norm not in AUDIT_NORMS:
+        raise RuntimeError(f"{name}: ожидается rules или gost, получено {norm!r}")
+    return norm
+
+
 def docx_audit_processor(context: JobContext) -> dict[str, object]:
     outdir = context.paths.output / "audit_processed"
     annotated_outdir = context.paths.output / "audit_annotated"
@@ -1706,6 +1726,9 @@ def docx_audit_processor(context: JobContext) -> dict[str, object]:
         "--json-out",
         context.report_dir / "docx_audit_processor.json",
     ]
+    rule_sets = [name for name, field, default in AUDIT_RULE_SET_FIELDS if _bool_param(context, field, default)]
+    # "--rule-sets=" with nothing chosen is one argument, not a flag without its value.
+    args.extend([f"--rule-sets={','.join(rule_sets)}", "--norm", _audit_norm(context, "audit_norm")])
     if _bool_param(context, "write_audit_anchors", True):
         args.extend(["--annotate", "--annotated-outdir", annotated_outdir])
     if _bool_param(context, "apply_fixes"):
@@ -1996,6 +2019,219 @@ def docx_xml_cleanup(context: JobContext) -> dict[str, object]:
         "report": str(report),
         "json_report": str(json_report),
     }
+
+
+# ------------------------------------------------------- document formatting
+
+FORMAT_TABLE_SUFFIX = "__fit_to_margins_optimized_widths"
+FORMAT_STEP_NAMES_RU = {
+    "strict_to_docx": "Strict Open XML в обычный DOCX через Word",
+    "accept_changes": "Принять исправления",
+    "strip_comments": "Удалить комментарии",
+    "nonprinting": "Удалить непечатаемый мусор",
+    "xml_cleanup": "Чистка XML",
+    "anomalies": "Корректировка аномалий",
+    "styles": "Стили по эталону",
+    "standard": "Стандарт оформления",
+    "tables": "Таблицы по ширине полей",
+    "text_hygiene": "Гигиена текста",
+    "audit_rules": "Единицы, №, %, градусы, даты",
+    "black_text": "Чёрный текст",
+}
+
+
+def _format_stage_input(source: Path, stage: Path, skip: set[Path]) -> int:
+    """Copy the documents to format into the first stage.
+
+    The reference and the heading map stay behind, so no later step can
+    process the reference as if it were one of the targets.
+    """
+    count = 0
+    for path in sorted(source.rglob("*.docx")):
+        if path.name.startswith("~$") or path.resolve() in skip:
+            continue
+        target = stage / path.relative_to(source)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, target)
+        count += 1
+    return count
+
+
+def _format_collect_step(previous: Path, produced: Path, suffix: str = "") -> Path:
+    """Turn a step's output into a complete, same-named copy of its input.
+
+    The steps are separate tools: the table optimizer appends a suffix to every
+    file, and a tool with nothing to do may write nothing at all. The next step
+    still has to find every document under its original name.
+    """
+    for original in sorted(previous.rglob("*.docx")):
+        target = produced / original.relative_to(previous)
+        if suffix:
+            renamed = target.with_name(f"{target.stem}{suffix}.docx")
+            if renamed.is_file():
+                renamed.replace(target)
+        if not target.is_file():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(original, target)
+    return produced
+
+
+def _number_param(context: JobContext, name: str, default: float) -> float:
+    raw = _str_param(context, name, str(default)).replace(",", ".") or str(default)
+    try:
+        return float(raw)
+    except ValueError as exc:
+        raise RuntimeError(f"{name}: ожидается число, получено {raw!r}") from exc
+
+
+def docx_format_documents(context: JobContext) -> dict[str, object]:
+    """One formatting pass: optional hygiene first, then styles and tables,
+    optional hygiene last. Every step reads the previous step's copies, so the
+    documents in input are never touched."""
+    reference: Path | None = None
+    if _bool_param(context, "use_reference", False):
+        reference = _input_file(context, _str_param(context, "reference_docx"), (".docx",), "Эталон DOCX")
+    config_args = _restyle_config_arg(context)
+    config = Path(config_args[1]) if config_args else None
+    restyle = reference is not None or config is not None
+    template_args: list[str | Path] = ["--template", reference] if reference is not None else []
+
+    def plain(cur: Path, out: Path, rep: Path) -> list[str | Path]:
+        return ["--input", cur, "--outdir", out]
+
+    plan = []
+    if _bool_param(context, "before_accept_changes", False):
+        plan.append(("accept_changes", "docx_accept_changes_simple.py", plain, ""))
+    if _bool_param(context, "before_strip_comments", False):
+        plan.append(("strip_comments", "docx_strip_comments.py", plain, ""))
+    if _bool_param(context, "before_nonprinting", True):
+        plan.append(("nonprinting", "docx_nonprinting_clean.py", lambda cur, out, rep: [
+            "--input", cur, "--outdir", out,
+            "--report", rep / "docx_nonprinting_clean.md", "--json-out", rep / "docx_nonprinting_clean.json",
+        ], ""))
+    cleanup_folded = _bool_param(context, "before_xml_cleanup", True) and restyle
+    if _bool_param(context, "before_xml_cleanup", True) and not restyle:
+        plan.append(("xml_cleanup", "docx_restyle_by_template.py", lambda cur, out, rep: [
+            "--input", cur, "--outdir", out, "--report", rep / "docx_xml_cleanup.md", "--clean-only",
+        ], ""))
+    if _bool_param(context, "before_anomalies", True):
+        # Exact row heights and no-wrap cells fight the table fitting, so they go first.
+        plan.append(("anomalies", "docx_anomaly_corrector.py", lambda cur, out, rep: [
+            "--input", cur, "--outdir", out, "--report", rep / "docx_anomaly_corrections.md",
+            "--json-out", rep / "docx_anomaly_corrections.json",
+        ], ""))
+    if restyle:
+        plan.append(("styles", "docx_restyle_by_template.py", lambda cur, out, rep: [
+            "--input", cur, "--outdir", out, "--report", rep / "docx_restyle.md", *template_args, *config_args,
+        ], ""))
+    if _bool_param(context, "apply_standard", True):
+        margins = ",".join(
+            f"{_number_param(context, name, default):g}"
+            for name, default in (
+                ("standard_margin_top_cm", 2.0),
+                ("standard_margin_bottom_cm", 2.0),
+                ("standard_margin_left_cm", 2.0),
+                ("standard_margin_right_cm", 1.5),
+            )
+        )
+        standard_args: list[str | Path] = [
+            "--margins-cm", margins,
+            "--font", _str_param(context, "standard_font", "Tahoma") or "Tahoma",
+            "--body-size", f"{_number_param(context, 'standard_body_size', 12):g}",
+            "--table-size", f"{_number_param(context, 'standard_table_size', 10):g}",
+            "--table-overflow-size", f"{_number_param(context, 'standard_table_overflow_size', 9):g}",
+        ]
+        plan.append(("standard", "docx_apply_standard.py", lambda cur, out, rep: [
+            "--input", cur, "--outdir", out, "--report", rep / "docx_apply_standard.md",
+            "--json-out", rep / "docx_apply_standard.json", *standard_args,
+        ], ""))
+    if _bool_param(context, "tables_fit_to_margins", True):
+        plan.append(("tables", "docx_table_width_optimizer.py", lambda cur, out, rep: [
+            "--input-dir", cur, "--outdir", out, "--report-dir", rep, "--all", "--recursive",
+            "--mode", "fit-to-margins", *_table_preheader_args(context),
+            "--fit-target", "current-section", *_table_page_args(context), *_table_fit_column_skip_args(context),
+            "--fit-overflowing",
+        ], FORMAT_TABLE_SUFFIX))
+    if _bool_param(context, "after_text_hygiene", False):
+        hygiene_options: list[str | Path] = []
+        if _bool_param(context, "after_text_hygiene_dot", False):
+            hygiene_options.append("--fix-dot")
+        if _bool_param(context, "after_remove_strikethrough", False):
+            hygiene_options.append("--remove-strikethrough")
+        plan.append(("text_hygiene", "docx_text_hygiene_fix.py", lambda cur, out, rep: [
+            "--input", cur, "--outdir", out, "--report", rep / "docx_text_hygiene_changes.md",
+            "--json-out", rep / "docx_text_hygiene_changes.json", *hygiene_options,
+        ], ""))
+    if _bool_param(context, "after_audit_fix", False):
+        # The processor's default rule files; the candidates in them only report.
+        audit_norm = _audit_norm(context, "after_audit_norm")
+        plan.append(("audit_rules", "docx_audit_processor.py", lambda cur, out, rep: [
+            "--input", cur, "--outdir", out, "--report", rep / "docx_audit_processor.md",
+            "--docx-out", rep / "docx_audit_processor.docx", "--json-out", rep / "docx_audit_processor.json",
+            "--fix", "--norm", audit_norm,
+        ], ""))
+    if _bool_param(context, "after_finalize_black", False):
+        plan.append(("black_text", "docx_finalize_black_clean.py", lambda cur, out, rep: [
+            "--input", cur, "--outdir", out, "--report", rep / "docx_finalize_changes.md",
+        ], ""))
+
+    stage_root = context.paths.workspace / "format_pass"
+    shutil.rmtree(stage_root, ignore_errors=True)
+    current = stage_root / "00_source"
+    skip = {path.resolve() for path in (reference, config) if path is not None}
+    count = _format_stage_input(context.paths.input.resolve(), current, skip)
+    if not count:
+        raise FileNotFoundError(f"Нет документов для форматирования: {context.paths.input}")
+    strict = [path for path in sorted(current.rglob("*.docx")) if is_strict_ooxml(path)]
+    if strict:
+        # Every step reads ordinary DOCX; Word resaves a Strict Open XML document first.
+        plan.insert(0, ("strict_to_docx", "docx_strict_to_docx.py", lambda cur, out, rep: [
+            "--input", cur, "--outdir", out, "--report", rep / "docx_strict_to_docx.md",
+            "--json-out", rep / "docx_strict_to_docx.json",
+        ], ""))
+        context.log(f"Strict Open XML documents: {len(strict)}; Word resaves them as ordinary DOCX first")
+    context.log(f"Documents to format: {count}; steps: {len(plan)}")
+
+    done: list[str] = []
+    skipped: list[str] = []
+    outdir = context.paths.output / "formatted"
+    try:
+        for index, (label, script, build_args, suffix) in enumerate(plan, start=1):
+            produced = stage_root / f"{index:02d}_{label}"
+            step_reports = context.report_dir / f"{index:02d}_{label}"
+            step_reports.mkdir(parents=True, exist_ok=True)
+            context.log(f"Formatting step {index}/{len(plan)}: {label}")
+            _run_command(context, _python_command(context, script, *build_args(current, produced, step_reports)))
+            current = _format_collect_step(current, produced, suffix)
+            if label == "strict_to_docx":
+                # A file Word could not resave would break the next steps: it leaves the pass.
+                for path in sorted(current.rglob("*.docx")):
+                    if is_strict_ooxml(path):
+                        skipped.append(path.relative_to(current).as_posix())
+                        path.unlink()
+                if skipped:
+                    context.log(f"Not formatted, Word could not resave them: {', '.join(skipped)}")
+            done.append(label)
+        shutil.rmtree(outdir, ignore_errors=True)
+        shutil.copytree(current, outdir)
+    except Exception:
+        context.log(f"Intermediate copies kept for inspection: {stage_root}")
+        raise
+    shutil.rmtree(stage_root, ignore_errors=True)
+
+    report = context.report_dir / "docx_format_documents.md"
+    lines = ["# Форматирование документов", "", f"Документов: {count}", f"Результат: `{outdir}`", "", "Порядок шагов:"]
+    lines += [f"{number}. {FORMAT_STEP_NAMES_RU[label]}" for number, label in enumerate(done, start=1)]
+    if not done:
+        lines.append("ни одного шага не выбрано - документы скопированы как есть")
+    if skipped:
+        lines += ["", "Не отформатированы - формат Strict Open XML, Word не смог пересохранить их в обычный DOCX (причина - в отчёте первого шага):"]
+        lines += [f"- `{name}`" for name in skipped]
+    if cleanup_folded:
+        lines += ["", "Чистка XML выполнена внутри переноса стилей и отдельным шагом не повторялась."]
+    lines += ["", "Отчёт каждого шага - в папке с его номером рядом с этим файлом."]
+    report.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return {"outdir": str(outdir), "report": str(report), "steps": done, "documents": count, "skipped": skipped}
 
 
 def docx_extract_tables(context: JobContext) -> dict[str, object]:

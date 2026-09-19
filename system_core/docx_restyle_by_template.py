@@ -31,6 +31,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from _office_common import find_docx_files, mirrored_output_path, safe_mkdir, write_json_file
+from docx_xml_tools import is_strict_ooxml
 
 import argparse, io, json, os, re, shutil, sys, tempfile, zipfile
 
@@ -172,6 +173,9 @@ def drop_empty_props(root):
     return n
 
 END_OK = '.;:!?»)"…'
+# A formula line is followed by its legend: «где а – коэффициент…». The legend
+# starts lowercase after a line with no full stop, yet it is its own paragraph.
+FORMULA_LEGEND = re.compile(r'^где\b', re.IGNORECASE)
 
 def join_broken(body):
     """
@@ -191,7 +195,7 @@ def join_broken(body):
             i += 1; continue
         ct, nt = norm(ptext(cur)), norm(ptext(nxt))
         ok = (ct and nt and ct[-1] not in END_OK and not ct.endswith(('-', '–'))
-              and nt[0].isalpha() and nt[0].islower())
+              and nt[0].isalpha() and nt[0].islower() and not FORMULA_LEGEND.match(nt))
         if ok:
             append_text(cur)
             for r in [x for x in nxt if x.tag in (q('r'), q('hyperlink'), q('bookmarkStart'),
@@ -877,7 +881,7 @@ def write_report(path: Path, input_root: Path, template: Path | None,
         lines.append("## %s" % result.source.name)
         lines.append("")
         if result.status != "OK":
-            lines.append("**Ошибка:** %s" % result.error)
+            lines.append("**%s:** %s" % ("Пропущен" if result.status == "SKIPPED" else "Ошибка", result.error))
             lines.append("")
             continue
         lines.append("Результат: `%s`" % result.output)
@@ -970,6 +974,13 @@ def main() -> int:
             continue
         output = Path(args.out).resolve() if args.file and args.out else mirrored_output_path(source, input_root, out_dir)
         result = RestyleResult(source=source, output=output, size_before=source.stat().st_size)
+        if is_strict_ooxml(source):
+            # Its XML lives in other namespaces; Word has to resave it as an ordinary DOCX first.
+            result.status = "SKIPPED"
+            result.error = "формат Strict Open XML - документ нужно пересохранить в Word как обычный DOCX"
+            print("[SKIP] %s: %s" % (source, result.error))
+            results.append(result)
+            continue
         try:
             result.lines = restyle_document(source, output, template, cfg, use_template, markup)
             result.size_after = output.stat().st_size
@@ -987,7 +998,7 @@ def main() -> int:
         write_json_file(json_path, build_json(input_root, results))
         print("[OK] JSON: %s" % json_path)
     print("[OK] Report: %s" % report_path)
-    return 0 if all(r.status == "OK" for r in results) else 1
+    return 0 if all(r.status in ("OK", "SKIPPED") for r in results) else 1
 
 
 if __name__ == "__main__":

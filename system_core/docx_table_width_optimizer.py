@@ -60,6 +60,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--margin-bottom-mm', type=float, help='Bottom margin in millimeters for explicit page/margin setup.')
     parser.add_argument('--margin-left-mm', type=float, help='Left margin in millimeters for explicit page/margin setup.')
     parser.add_argument('--skip-fit-max-columns', type=int, default=3, help='Do not rebalance or fit tables with this many columns or fewer. Use 0 to disable.')
+    parser.add_argument('--fit-overflowing', action='store_true', help='For fit-to-margins: always fit a table wider than its section text, whatever the skip rules say.')
     return parser.parse_args()
 
 
@@ -310,6 +311,21 @@ def _count_data_rows(model, preheader_mode: str = 'include') -> int:
 
 def _skip_fit_max_columns(args: argparse.Namespace) -> int:
     return max(0, int(args.skip_fit_max_columns or 0))
+
+
+_FIT_W_NS = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
+
+
+def _grid_width_cm(table) -> float:
+    """Width the table's column grid takes now; the declared tblW may say otherwise."""
+    grid = table._tbl.find(_FIT_W_NS + 'tblGrid')
+    if grid is None:
+        return 0.0
+    twips = 0
+    for column in grid.findall(_FIT_W_NS + 'gridCol'):
+        value = column.get(_FIT_W_NS + 'w') or ''
+        twips += int(value) if value.isdigit() else 0
+    return twips / 1440 * 2.54
 
 
 def _should_optimize_table(model, page_estimate: int, preheader_mode: str, skip_fit_max_columns: int) -> tuple[bool, str]:
@@ -598,6 +614,10 @@ def process_one(input_dir: Path, out_dir: Path, report_dir: Path, source: Path, 
                 args.preheader_mode,
                 _skip_fit_max_columns(args),
             )
+            if not should_optimize and args.mode == 'fit-to-margins' and args.fit_overflowing:
+                # A table sticking out of the margins is fitted even on a title page or with one row.
+                if _grid_width_cm(table) > _section_available_width_cm(document, table, table_section_map) + 0.05:
+                    should_optimize, reason = True, 'overflow_forced'
             if not should_optimize:
                 report['skipped_tables'].append({
                     'table_index': idx,
@@ -624,6 +644,7 @@ def process_one(input_dir: Path, out_dir: Path, report_dir: Path, source: Path, 
                 'table_index': idx,
                 'page_estimate': page_estimate,
                 'column_count': model.width,
+                'forced_overflow': reason == 'overflow_forced',
                 'target_total_width_cm': round(total_width_cm, 4),
                 'optimized_widths_cm': [round(w, 4) for w in widths_cm],
             })

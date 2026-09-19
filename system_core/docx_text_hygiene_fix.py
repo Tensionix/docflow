@@ -33,10 +33,11 @@ except Exception:
 
 import argparse
 import re
+from collections import Counter
 from pathlib import Path
 
 from docx import Document
-from _office_common import safe_mkdir, find_docx_files, mirrored_output_path, rel_posix, write_json_file
+from _office_common import md_escape, safe_mkdir, find_docx_files, mirrored_output_path, rel_posix, write_json_file
 from docx_xml_tools import (
     read_zip_map, write_zip_map, list_xml_parts, NS,
     _etree_from_bytes, _etree_to_bytes,
@@ -54,11 +55,24 @@ except ImportError:  # pragma: no cover - package import fallback
     )
 
 PAT_DOUBLE_SPACE = re.compile(r" {2,}")
-PAT_SPACE_BEFORE_PUNCT = re.compile(r"\s+([,.;:!?])")
-PAT_MISSING_AFTER_PUNCT = re.compile(r"([,;:!?])(?=[^\s\]\)\}\>\"'”’])")
+# Ordinary spaces only: a non-breaking one is set on purpose. A space after a comma, a
+# semicolon or a colon stays: in "Прогулочная, , пляж" the empty item is the author's to remove.
+PAT_SPACE_BEFORE_PUNCT = re.compile(r"(?<![,;:]) +([,.;:!?])")
+# A space goes after , ; : ! ? unless the next character closes something or is
+# punctuation itself ("?!"), or the mark sits between digits: 0,98, 10:30,
+# 72:17:1313004 and 1:500 are numbers, not two words. A colon before / or a
+# backslash belongs to an address or a path.
+# A mark that opens a text node before a digit may continue a number Word cut into
+# two runs ("11" + ",4"), and a closing guillemet closes like a quote.
+PAT_MISSING_AFTER_PUNCT = re.compile(r"([,;:!?])(?=[^\s\]\)\}\>\"'”’»,.;:!?…])(?!(?<=\d[,;:])\d)(?!(?<=^[,;:])\d)(?!(?<=:)[/\\])")
 PAT_MISSING_AFTER_DOT = re.compile(r"(?<!\d)(\.)(?=[A-Za-zА-Яа-яЁё])")  # heuristic
 
 TEMP_OFFICE_PATTERNS = ("~$*.docx", "~$*.xlsx", "~$*.pptx", "~$*.doc", "~$*.xls", "~$*.ppt")
+# The Markdown and DOCX reports list this many changes per file; the JSON report lists all.
+MAX_CHANGES_PER_FILE = 300
+SHOWN_SPACE = "·"
+SHOWN_NBSP = "⍽"
+CHANGE_LEGEND = f"Пробелы в графах «Было» и «Стало» показаны знаками: {SHOWN_SPACE} - пробел, {SHOWN_NBSP} - неразрывный пробел."
 
 
 def fix_missing_after_dot(text: str) -> str:
@@ -69,8 +83,8 @@ def fix_text(s: str, fix_dot: bool) -> str:
     if not s:
         return s
 
-    # Normalize NBSP to space
-    s = s.replace("\u00A0", " ")
+    # Non-breaking spaces stay: they hold a number to its unit, a sign to its
+    # number, initials together - authors put them there on purpose.
 
     # 1) collapse multiple spaces
     s = PAT_DOUBLE_SPACE.sub(" ", s)
@@ -157,6 +171,19 @@ def purge_temp_office_files(root: Path) -> list[str]:
         removed.append(rel)
     return removed
 
+def _shown(value: object) -> str:
+    """A hygiene change is mostly a space: make the spaces visible."""
+    return str(value if value is not None else "").replace(" ", SHOWN_SPACE).replace(chr(0xA0), SHOWN_NBSP)
+
+
+def _applied_changes(row: dict[str, object]) -> list[dict[str, object]]:
+    return [finding for finding in row.get("findings") or [] if finding.get("action") == "FIX"]
+
+
+def _change_counts(rows: list[dict[str, object]]) -> Counter:
+    return Counter(str(change.get("label") or change.get("class_id")) for row in rows for change in _applied_changes(row))
+
+
 def write_change_report(report_path: Path, rows: list[dict[str, object]], removed_temp: list[str]) -> None:
     safe_mkdir(report_path.parent)
     lines: list[str] = []
@@ -174,6 +201,32 @@ def write_change_report(report_path: Path, rows: list[dict[str, object]], remove
         lines.append(
             f"| `{row['file']}` | `{row['output']}` | {row['changed_nodes']} | {row['changed_chars']} | {row['status']} |"
         )
+
+    lines.append("")
+    lines.append("## Правки по видам\n")
+    lines.append(CHANGE_LEGEND + "\n")
+    lines.append("| Вид правки | Правок |")
+    lines.append("|---|---:|")
+    counts = _change_counts(rows)
+    for label, count in counts.most_common():
+        lines.append(f"| {md_escape(label)} | {count} |")
+    if not counts:
+        lines.append("| Правок нет | 0 |")
+    for row in rows:
+        changes = _applied_changes(row)
+        if not changes:
+            continue
+        lines.append("")
+        lines.append(f"## {md_escape(row['file'])}\n")
+        lines.append("| Вид правки | Было | Стало | Контекст |")
+        lines.append("|---|---|---|---|")
+        for change in changes[:MAX_CHANGES_PER_FILE]:
+            lines.append(
+                f"| {md_escape(change.get('label'))} | `{md_escape(_shown(change.get('before')))}` | "
+                f"`{md_escape(_shown(change.get('after')))}` | {md_escape(change.get('context'))} |"
+            )
+        if len(changes) > MAX_CHANGES_PER_FILE:
+            lines.append(f"\n_Показаны первые {MAX_CHANGES_PER_FILE} правок из {len(changes)}; все правки - в JSON-отчёте._")
     report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     doc = Document()
@@ -199,6 +252,34 @@ def write_change_report(report_path: Path, rows: list[dict[str, object]], remove
         cells[2].text = str(row["changed_nodes"])
         cells[3].text = str(row["changed_chars"])
         cells[4].text = str(row["status"])
+
+    doc.add_heading("Правки по видам", level=2)
+    doc.add_paragraph(CHANGE_LEGEND)
+    kinds = doc.add_table(rows=1, cols=2)
+    kinds.style = "Table Grid"
+    kinds.rows[0].cells[0].text = "Вид правки"
+    kinds.rows[0].cells[1].text = "Правок"
+    for label, count in _change_counts(rows).most_common():
+        cells = kinds.add_row().cells
+        cells[0].text = label
+        cells[1].text = str(count)
+    for row in rows:
+        changes = _applied_changes(row)
+        if not changes:
+            continue
+        doc.add_heading(str(row["file"]), level=3)
+        details = doc.add_table(rows=1, cols=4)
+        details.style = "Table Grid"
+        for index, header in enumerate(["Вид правки", "Было", "Стало", "Контекст"]):
+            details.rows[0].cells[index].text = header
+        for change in changes[:MAX_CHANGES_PER_FILE]:
+            cells = details.add_row().cells
+            cells[0].text = str(change.get("label") or "")
+            cells[1].text = _shown(change.get("before"))
+            cells[2].text = _shown(change.get("after"))
+            cells[3].text = str(change.get("context") or "")
+        if len(changes) > MAX_CHANGES_PER_FILE:
+            doc.add_paragraph(f"Показаны первые {MAX_CHANGES_PER_FILE} правок из {len(changes)}; все правки - в JSON-отчёте.")
     doc.save(str(report_path.with_suffix(".docx")))
 
 

@@ -29,188 +29,45 @@ processor:
   edit_scope_ru: "Только видимые текстовые узлы DOCX w:t; структура, стили, таблицы, секции и media не переписываются."
   safety_model_ru: "Правки применяются к копиям документов. Неоднозначные правила работают как scan/suggest или остаются для AI."
 
-deterministic_project_rules:
-  - code: AUDIT-UNIT-SQM
-    status: implemented
-    action: fix
-    severity: major
-    title_ru: "Единицы площади: кв. м"
-    canonical: "кв. м"
-    source_sections:
-      - "Типографика и пробелы"
-      - "Сокращения и единицы"
-    examples:
-      - before: "10кв.м"
-        after: "10 кв. м"
-      - before: "10 кв м"
-        after: "10 кв. м"
-      - before: "10 кв.м."
-        after: "10 кв. м"
-      - before: "10 м2"
-        after: "10 кв. м"
-      - before: "10 м²"
-        after: "10 кв. м"
-      - before: "10 квадратных метров"
-        after: "10 кв. м"
-    notes_ru: "Правило срабатывает только после числа, чтобы не ломать текстовые упоминания без величины."
+rule_sets_ru: >
+  Детерминированные правила лежат файлами по разделам. Движок читает их при
+  каждом запуске; примеры fix и keep у каждого правила - его тесты. Формат
+  правила и проверка примеров - config/rules/rules.md.
+checker: "system_core/audit_rule_files.py"
+rule_sets:
+  - file: "config/rules/units.yaml"
+    title_ru: "Единицы измерения, проценты и градусы"
+    default: true
+  - file: "config/rules/house.yaml"
+    title_ru: "Правила проекта: №, даты, подписи"
+    default: true
+  - file: "config/rules/abbreviations.yaml"
+    title_ru: "Сокращения"
+    default: true
+  - file: "config/rules/acronyms.yaml"
+    title_ru: "Аббревиатуры"
+    default: true
+  - file: "config/rules/addresses.yaml"
+    title_ru: "Исправления адресов"
+    default: false
 
-  - code: AUDIT-UNIT-CUBIC
-    status: implemented
-    action: fix
-    severity: major
-    title_ru: "Единицы объёма: куб. м"
-    canonical: "куб. м"
-    source_sections:
-      - "Типографика и пробелы"
-      - "Сокращения и единицы"
-    examples:
-      - before: "15куб.м"
-        after: "15 куб. м"
-      - before: "15 м3"
-        after: "15 куб. м"
-      - before: "15 м³"
-        after: "15 куб. м"
-      - before: "15 кубических метров"
-        after: "15 куб. м"
-
-  - code: AUDIT-UNIT-SPACE
-    status: implemented
-    action: fix
-    severity: minor
-    title_ru: "Пробел между числом и единицей измерения"
-    canonical: "число + пробел + единица"
-    source_sections:
-      - "Типографика и пробелы"
-      - "Сокращения и единицы"
-    covered_units:
-      - "мм"
-      - "см"
-      - "м"
-      - "км"
-      - "га"
-      - "т"
-      - "кг"
-      - "л"
-      - "мл"
-      - "руб."
-      - "Гкал/ч"
-      - "Гкал"
-      - "кВт"
-      - "МВт"
-    examples:
-      - before: "10м"
-        after: "10 м"
-      - before: "5км"
-        after: "5 км"
-      - before: "20га"
-        after: "20 га"
-      - before: "3Гкал/ч"
-        after: "3 Гкал/ч"
-      - before: "100руб."
-        after: "100 руб."
-
-  - code: AUDIT-PERCENT
-    status: implemented
-    action: fix
-    severity: minor
-    title_ru: "Процент без пробела"
-    canonical: "50%"
-    source_sections:
-      - "Типографика и пробелы"
-    examples:
-      - before: "50 %"
-        after: "50%"
-
-  - code: AUDIT-DEGREE
-    status: implemented
-    action: fix
-    severity: minor
-    title_ru: "Градусы без пробела"
-    canonical: "5°, 5°C, -12°C"
-    source_sections:
-      - "Типографика и пробелы"
-    examples:
-      - before: "5 °"
-        after: "5°"
-      - before: "5 °C"
-        after: "5°C"
-      - before: "-12 °C"
-        after: "-12°C"
-
-  - code: AUDIT-NUMBER-SIGN
-    status: implemented
-    action: fix
-    severity: minor
-    title_ru: "Пробел после знака номера"
-    canonical: "№ 1"
-    source_sections:
-      - "Типографика и пробелы"
-      - "Оформление правовых актов"
-    examples:
-      - before: "№1"
-        after: "№ 1"
-
-  - code: AUDIT-DATE-YEAR-SUFFIX
-    status: implemented
-    action: fix
-    severity: minor
-    title_ru: "Дата без суффикса г."
-    canonical: "20.12.2012"
-    source_sections:
-      - "Сокращения и единицы"
-    examples:
-      - before: "20.12.2012 г."
-        after: "20.12.2012"
-
-  - code: AUDIT-CAPTION-TABLE-TYPO
-    status: implemented
-    action: fix
-    severity: major
-    title_ru: "Опечатки в названии таблицы"
-    canonical: "Таблица 1"
-    source_sections:
-      - "Таблицы, рисунки и подписи"
-    examples:
-      - before: "Таблрица. 3"
-        after: "Таблица 3"
-      - before: "Таблица. 3"
-        after: "Таблица 3"
-
-  - code: AUDIT-RF-SCAN
-    status: implemented
-    action: suggest
-    severity: warning
-    title_ru: "Сокращение РФ"
-    canonical: "Российская Федерация / Российской Федерации"
-    source_sections:
-      - "Жесткие ограничения"
-      - "НПА и юридические форматы"
-    examples:
-      - before: "РФ"
-        after: "Российская Федерация / Российской Федерации (проверить падеж)"
-    notes_ru: "Не исправляется автоматически из-за падежа, цитат, реквизитов и официальных названий."
+norms:
+  rules:
+    title_ru: "ПРАВИЛА"
+    default: true
+    canonical: "50%, 5°C, угол 20°"
+    note_ru: "Норма проекта: знаки вплотную к числу, шкала Цельсия - латинской C."
+  gost:
+    title_ru: "ГОСТ"
+    canonical: "50 %, 20 °С, угол 20°"
+    note_ru: "Между числом и знаком процента или градусов Цельсия - неразрывный пробел, С - русская; угловой градус вплотную."
 
 future_project_candidates:
-  - code: AUDIT-UNIT-MULTIPLIER
-    status: planned
-    action: fix_or_suggest
-    title_ru: "млн без точки, тыс. с точкой"
-    reason_ru: "Можно автоматизировать вокруг чисел и единиц, но нужно не ломать табличные заголовки и сокращения в источниках."
-  - code: AUDIT-SLASH-UNIT-SPACES
-    status: planned
-    action: fix
-    title_ru: "Пробелы вокруг слеша в единицах"
-    reason_ru: "руб. / сут -> руб./сут, куб. м / ч -> куб. м/ч. Нужен закрытый список единиц."
   - code: AUDIT-DASH-SPACED-HYPHEN
     status: planned
     action: suggest
     title_ru: "Дефис/минус с пробелами между словами"
     reason_ru: "Можно искать шаблон слово - слово, но нужна защита от диапазонов, формул и составных обозначений."
-  - code: AUDIT-CAPTION-FIGURE-TYPO
-    status: planned
-    action: fix
-    title_ru: "Опечатки в названиях рисунков, схем, диаграмм"
-    reason_ru: "Безопасно для типовых 'Рисунок. 1', 'Риснунок 1', но нужен список реальных опечаток из документов."
 
 ai_residual_rules:
   - id: AI-NO-HALLUCINATION
@@ -225,6 +82,9 @@ ai_residual_rules:
   - id: AI-TOPONYMS
     title_ru: "Склонение топонимов"
     reason_ru: "Требует грамматики, падежа и контекста."
+  - id: AI-ADDRESSES
+    title_ru: "Правильность адресов"
+    reason_ru: "Запись сокращений проверяет addresses.yaml; название улицы, номер дома и падеж проверяются по справочнику или смыслу."
   - id: AI-NUMERIC-REALISM
     title_ru: "Реалистичность чисел"
     reason_ru: "Нужны предметные знания: население, площадь, соразмерность величин."

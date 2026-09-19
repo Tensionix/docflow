@@ -25,39 +25,30 @@ import argparse
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Match, Pattern
 
 from docx import Document
 from lxml import etree
 
 from _office_common import find_docx_files, md_escape, mirrored_output_path, safe_mkdir, truncate, write_json_file
 from docx_xml_tools import NS, _etree_from_bytes, _etree_to_bytes, list_xml_parts, read_zip_map, write_zip_map
+from audit_rule_files import (
+    DEFAULT_NORM,
+    DEFAULT_RULE_SETS,
+    NORMS,
+    RULES_DIR,
+    RuleBook,
+    RuleError,
+    apply_rules,
+    load_rule_book,
+    parse_rule_sets,
+)
 
 
 XML_SPACE = "{http://www.w3.org/XML/1998/namespace}space"
 TEXT_WINDOW = 70
 MAX_FINDINGS_PER_FILE = 300
-RULE_CATALOG = Path(__file__).resolve().parents[1] / "config" / "rules" / "rules.yaml"
 ANCHOR_COLOR = "C05600"
-
-NUM_RE = r"(?P<num>(?<![\wА-Яа-яЁё])[-+]?\d+(?:[ \u00A0]?\d{3})*(?:[,.]\d+)?)"
-AFTER_UNIT_RE = r"(?=$|[\s\u00A0,.;:!?()\[\]{}<>«»\"'“”‘’/-])"
-
-
-@dataclass(frozen=True)
-class AuditRule:
-    code: str
-    title: str
-    severity: str
-    description: str
-    pattern: Pattern[str]
-    replacement: str | Callable[[Match[str]], str]
-    fixable: bool = True
-
-    def replacement_for(self, match: Match[str]) -> str:
-        if callable(self.replacement):
-            return self.replacement(match)
-        return match.expand(self.replacement)
+NORM_TITLES = {"rules": "ПРАВИЛА: 50%, 5°C", "gost": "ГОСТ: 50 %, 20 °C"}
 
 
 @dataclass
@@ -90,212 +81,39 @@ class FileAuditReport:
     rule_counts: dict[str, int] = field(default_factory=dict)
 
 
-def _clean_spaces(value: str) -> str:
-    return re.sub(r"[ \u00A0]+", " ", value.replace("\u00A0", " ")).strip()
+# The rules of this run. main() loads the files and the norm it is asked for; a
+# caller that imports this module gets the default files and norm.
+RULE_BOOK: RuleBook | None = None
 
 
-def _same_case_unit(unit: str) -> str:
-    compact = _clean_spaces(unit).replace(" ", "")
-    lower = compact.lower().replace("ё", "е")
-    if lower == "гкал/ч":
-        return "Гкал/ч"
-    if lower == "гкал":
-        return "Гкал"
-    if lower == "квт":
-        return "кВт"
-    if lower == "мвт":
-        return "МВт"
-    if lower in {"руб", "руб."}:
-        return "руб."
-    return _clean_spaces(unit)
+def rule_book() -> RuleBook:
+    global RULE_BOOK
+    if RULE_BOOK is None:
+        RULE_BOOK = load_rule_book(DEFAULT_RULE_SETS, DEFAULT_NORM)
+    return RULE_BOOK
 
 
-def _sqm_replacement(match: Match[str]) -> str:
-    return f"{_clean_spaces(match.group('num'))} кв. м"
-
-
-def _cubic_replacement(match: Match[str]) -> str:
-    return f"{_clean_spaces(match.group('num'))} куб. м"
-
-
-def _common_unit_replacement(match: Match[str]) -> str:
-    return f"{_clean_spaces(match.group('num'))} {_same_case_unit(match.group('unit'))}"
-
-
-def _degree_replacement(match: Match[str]) -> str:
-    suffix = match.group("scale") or ""
-    return f"{_clean_spaces(match.group('num'))}°{'C' if suffix else ''}"
-
-
-def _date_without_year_suffix(match: Match[str]) -> str:
-    return match.group("date")
-
-
-def _russian_federation_suggestion(_match: Match[str]) -> str:
-    return "Российская Федерация / Российской Федерации (проверить падеж)"
-
-
-def _build_rules() -> list[AuditRule]:
-    sqm_units = (
-        r"(?:"
-        r"кв\.?м\.?|"
-        r"кв\.\s+м|"
-        r"кв\s+м|"
-        r"кв\.?\s*метр(?:а|ов)?|"
-        r"квадратн(?:ый|ого|ому|ым|ом|ая|ой|ую|ые|ых|ыми)?\s+метр(?:а|ов)?|"
-        r"м\s*(?:2|²)"
-        r")"
-    )
-    cubic_units = (
-        r"(?:"
-        r"куб\.?м\.?|"
-        r"куб\.\s+м|"
-        r"куб\s+м|"
-        r"куб\.?\s*метр(?:а|ов)?|"
-        r"кубическ(?:ий|ого|ому|им|ом|ая|ой|ую|ие|их|ими)?\s+метр(?:а|ов)?|"
-        r"м\s*(?:3|³)"
-        r")"
-    )
-    common_units = (
-        r"(?P<unit>"
-        r"мм|см|км|м|га|т|кг|л|мл|"
-        r"руб\.?|"
-        r"Гкал/ч|Гкал|гкал/ч|гкал|кВт|квт|МВт|мвт"
-        r")"
-    )
-
-    return [
-        AuditRule(
-            code="AUDIT-UNIT-SQM",
-            title="Единицы площади: кв. м",
-            severity="major",
-            description="Нормализует варианты после числа: кв.м, кв м, м2, м², квадратных метров -> кв. м.",
-            pattern=re.compile(rf"{NUM_RE}[ \u00A0]*{sqm_units}{AFTER_UNIT_RE}", re.IGNORECASE),
-            replacement=_sqm_replacement,
-        ),
-        AuditRule(
-            code="AUDIT-UNIT-CUBIC",
-            title="Единицы объёма: куб. м",
-            severity="major",
-            description="Нормализует варианты после числа: куб.м, куб м, м3, м³, кубических метров -> куб. м.",
-            pattern=re.compile(rf"{NUM_RE}[ \u00A0]*{cubic_units}{AFTER_UNIT_RE}", re.IGNORECASE),
-            replacement=_cubic_replacement,
-        ),
-        AuditRule(
-            code="AUDIT-UNIT-SPACE",
-            title="Пробел между числом и единицей измерения",
-            severity="minor",
-            description="Добавляет пробел в безопасных случаях: 10м, 5км, 20га, 3Гкал/ч, 100руб.",
-            pattern=re.compile(rf"{NUM_RE}{common_units}{AFTER_UNIT_RE}"),
-            replacement=_common_unit_replacement,
-        ),
-        AuditRule(
-            code="AUDIT-PERCENT",
-            title="Процент без пробела",
-            severity="minor",
-            description="Нормализует запись процента: 50 % -> 50%.",
-            pattern=re.compile(rf"{NUM_RE}[ \u00A0]+%"),
-            replacement=lambda match: f"{_clean_spaces(match.group('num'))}%",
-        ),
-        AuditRule(
-            code="AUDIT-DEGREE",
-            title="Градусы без пробела",
-            severity="minor",
-            description="Нормализует запись градусов: 5 °, 5 °C -> 5°, 5°C.",
-            pattern=re.compile(rf"{NUM_RE}[ \u00A0]*°[ \u00A0]*(?P<scale>[CcСс])?"),
-            replacement=_degree_replacement,
-        ),
-        AuditRule(
-            code="AUDIT-NUMBER-SIGN",
-            title="Пробел после знака номера",
-            severity="minor",
-            description="Нормализует запись номера: №1 -> № 1.",
-            pattern=re.compile(r"№[ \u00A0]*(?P<num>\d+)"),
-            replacement=lambda match: f"№ {match.group('num')}",
-        ),
-        AuditRule(
-            code="AUDIT-DATE-YEAR-SUFFIX",
-            title="Дата без суффикса г.",
-            severity="minor",
-            description="Убирает лишнее 'г.' после полной даты: 20.12.2012 г. -> 20.12.2012.",
-            pattern=re.compile(r"(?P<date>\b\d{1,2}\.\d{1,2}\.\d{4})[ \u00A0]*г\."),
-            replacement=_date_without_year_suffix,
-        ),
-        AuditRule(
-            code="AUDIT-CAPTION-TABLE-TYPO",
-            title="Опечатки в названии таблицы",
-            severity="major",
-            description="Исправляет безопасные варианты: Таблрица 1, Таблица. 1 -> Таблица 1.",
-            pattern=re.compile(r"\b(?:Таблрица|Таблица\.)[ \u00A0]*(?P<num>\d+)", re.IGNORECASE),
-            replacement=lambda match: f"Таблица {match.group('num')}",
-        ),
-        AuditRule(
-            code="AUDIT-RF-SCAN",
-            title="Сокращение РФ",
-            severity="warning",
-            description="Фиксирует сокращение РФ для ручной замены полным названием в нужном падеже.",
-            pattern=re.compile(r"\bРФ\b"),
-            replacement=_russian_federation_suggestion,
-            fixable=False,
-        ),
-    ]
-
-
-RULES = _build_rules()
-
-
-def _context(text: str, start: int, end: int) -> str:
-    left = max(0, start - TEXT_WINDOW)
-    right = min(len(text), end + TEXT_WINDOW)
-    return text[left:right]
+def _rule_files_line() -> str:
+    return ", ".join(f"{name}.yaml" for name in rule_book().sets) or "не выбраны"
 
 
 def _apply_rules_to_text(text: str, part: str, *, fix: bool) -> tuple[str, list[AuditFinding]]:
-    current = text
-    findings: list[AuditFinding] = []
-    for rule in RULES:
-        if rule.fixable:
-
-            def replace(match: Match[str], audit_rule: AuditRule = rule) -> str:
-                before = match.group(0)
-                after = audit_rule.replacement_for(match)
-                if after != before:
-                    findings.append(
-                        AuditFinding(
-                            rule_code=audit_rule.code,
-                            rule_title=audit_rule.title,
-                            severity=audit_rule.severity,
-                            action="FIX" if fix else "PLAN",
-                            part=part,
-                            before=before,
-                            after=after,
-                            context=_context(current, match.start(), match.end()),
-                            start=match.start(),
-                            end=match.end(),
-                        )
-                    )
-                return after if fix else before
-
-            current = rule.pattern.sub(replace, current)
-            continue
-
-        for match in rule.pattern.finditer(current):
-            before = match.group(0)
-            after = rule.replacement_for(match)
-            findings.append(
-                AuditFinding(
-                    rule_code=rule.code,
-                    rule_title=rule.title,
-                    severity=rule.severity,
-                    action="SUGGEST",
-                    part=part,
-                before=before,
-                after=after,
-                context=_context(current, match.start(), match.end()),
-                start=match.start(),
-                end=match.end(),
-            )
+    current, hits = apply_rules(rule_book().rules, text, fix=fix, window=TEXT_WINDOW)
+    findings = [
+        AuditFinding(
+            rule_code=hit.rule.code,
+            rule_title=hit.rule.title,
+            severity=hit.rule.severity,
+            action=hit.action,
+            part=part,
+            before=hit.before,
+            after=hit.after,
+            context=hit.context,
+            start=hit.start,
+            end=hit.end,
         )
+        for hit in hits
+    ]
     return current, findings
 
 
@@ -454,7 +272,11 @@ def _write_docx_report(out_path: Path, reports: list[FileAuditReport], *, fix: b
     doc.add_heading("Отчёт audit processor DOCX", level=1)
     doc.add_paragraph(f"Режим исправления: {'ДА' if fix else 'НЕТ'}")
     doc.add_paragraph(f"Dry-run: {'ДА' if dry_run else 'НЕТ'}")
-    doc.add_paragraph(f"Карта правил: {RULE_CATALOG}")
+    doc.add_paragraph(f"Папка правил: {RULES_DIR}")
+    doc.add_paragraph(f"Файлы правил: {_rule_files_line()}")
+    doc.add_paragraph(f"Норма % и °: {NORM_TITLES[rule_book().norm]}")
+    for warning in rule_book().warnings:
+        doc.add_paragraph(f"Замечание к файлам правил: {warning}")
     doc.add_paragraph("Ограничение: правила применяются внутри отдельных текстовых узлов DOCX (w:t).")
 
     doc.add_heading("Сводка", level=2)
@@ -474,16 +296,18 @@ def _write_docx_report(out_path: Path, reports: list[FileAuditReport], *, fix: b
         cells[7].text = str(item.annotated_output or "")
 
     doc.add_heading("Правила", level=2)
-    rules_table = doc.add_table(rows=1, cols=4)
+    rules_table = doc.add_table(rows=1, cols=6)
     rules_table.style = "Table Grid"
-    for idx, header in enumerate(["Код", "Правило", "Severity", "Описание"]):
+    for idx, header in enumerate(["Код", "Файл", "Правило", "Severity", "Режим", "Описание"]):
         rules_table.rows[0].cells[idx].text = header
-    for rule in RULES:
+    for rule in rule_book().rules:
         cells = rules_table.add_row().cells
         cells[0].text = rule.code
-        cells[1].text = rule.title
-        cells[2].text = rule.severity
-        cells[3].text = rule.description
+        cells[1].text = f"{rule.rule_set}.yaml"
+        cells[2].text = rule.title
+        cells[3].text = rule.severity
+        cells[4].text = rule.mode
+        cells[5].text = rule.description
 
     doc.add_heading("Примеры", level=2)
     for item in reports:
@@ -508,7 +332,9 @@ def write_report_md(out_path: Path, reports: list[FileAuditReport], *, input_roo
     lines: list[str] = ["# Отчёт audit processor DOCX\n"]
     lines.append(f"- Режим исправления: **{'ДА' if fix else 'НЕТ'}**")
     lines.append(f"- Dry-run: **{'ДА' if dry_run else 'НЕТ'}**")
-    lines.append(f"- Карта правил проекта: `{RULE_CATALOG}`")
+    lines.append(f"- Папка правил: `{RULES_DIR}`")
+    lines.append(f"- Файлы правил: {_rule_files_line()}")
+    lines.append(f"- Норма % и °: **{NORM_TITLES[rule_book().norm]}**")
     lines.append("- Область правок: только видимый текст в отдельных узлах `w:t`; структура DOCX, стили, таблицы, секции и media не переписываются.")
     lines.append("")
     lines.append("## Сводка\n")
@@ -522,16 +348,22 @@ def write_report_md(out_path: Path, reports: list[FileAuditReport], *, input_roo
         )
     lines.append("")
 
+    if rule_book().warnings:
+        lines.append("## Замечания к файлам правил\n")
+        lines.extend(f"- {md_escape(warning)}" for warning in rule_book().warnings)
+        lines.append("")
+
     totals: dict[str, int] = {}
     for item in reports:
         for code, count in item.rule_counts.items():
             totals[code] = totals.get(code, 0) + count
     lines.append("## Правила и найденные случаи\n")
-    lines.append("| Код | Правило | Severity | Найдено | Режим |")
-    lines.append("|---|---|---|---:|---|")
-    for rule in RULES:
-        mode = "FIX" if rule.fixable else "SUGGEST"
-        lines.append(f"| `{rule.code}` | {md_escape(rule.title)} | `{rule.severity}` | {totals.get(rule.code, 0)} | `{mode}` |")
+    lines.append("| Код | Файл | Правило | Severity | Найдено | Режим |")
+    lines.append("|---|---|---|---|---:|---|")
+    for rule in rule_book().rules:
+        lines.append(
+            f"| `{rule.code}` | `{rule.rule_set}.yaml` | {md_escape(rule.title)} | `{rule.severity}` | {totals.get(rule.code, 0)} | `{rule.mode}` |"
+        )
     lines.append("")
 
     for item in reports:
@@ -596,19 +428,27 @@ def build_json_payload(input_root: Path, reports: list[FileAuditReport], *, fix:
         "tool": "docx_audit_processor",
         "version": 1,
         "input_dir": str(input_root),
-        "rule_catalog": str(RULE_CATALOG),
+        "rule_catalog": str(RULES_DIR),
+        "rule_sets": list(rule_book().sets),
+        "norm": rule_book().norm,
+        "rule_warnings": list(rule_book().warnings),
         "fix_enabled": bool(fix),
         "dry_run": bool(dry_run),
         "anchors_enabled": any(item.annotated_output for item in reports),
         "rules": [
             {
                 "code": rule.code,
+                "rule_set": rule.rule_set,
+                "status": rule.status,
                 "title": rule.title,
+                "title_en": rule.title_en,
                 "severity": rule.severity,
                 "fixable": rule.fixable,
+                "mode": rule.mode,
                 "description": rule.description,
+                "sources": list(rule.sources),
             }
-            for rule in RULES
+            for rule in rule_book().rules
         ],
         "files": files,
         "summary": {
@@ -646,7 +486,22 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true", help="Plan fixes without writing DOCX output files")
     parser.add_argument("--annotate", action="store_true", help="Write __annotated DOCX copies with audit anchors")
     parser.add_argument("--annotated-outdir", default="output/audit_annotated", help="Output folder for __annotated DOCX files")
+    parser.add_argument(
+        "--rule-sets",
+        default=",".join(DEFAULT_RULE_SETS),
+        help="Rule files from config/rules, comma separated: units,house,abbreviations,acronyms,addresses",
+    )
+    parser.add_argument("--norm", default=DEFAULT_NORM, choices=NORMS, help="Percent and degrees: rules (50%%, 5°C) or gost (50 %%, 20 °С)")
     args = parser.parse_args()
+
+    global RULE_BOOK
+    try:
+        RULE_BOOK = load_rule_book(parse_rule_sets(args.rule_sets), args.norm)
+    except RuleError as exc:
+        print(f"[ERROR] {exc}")
+        return 2
+    for warning in RULE_BOOK.warnings:
+        print(f"[WARN] {warning}")
 
     input_root, docx_files = _input_paths(args)
     report_path = Path(args.report).resolve()
@@ -691,6 +546,7 @@ def main() -> int:
         write_json_file(json_path, build_json_payload(input_root, reports, fix=args.fix, dry_run=args.dry_run))
         print(f"[OK] JSON report: {json_path}")
 
+    print(f"[OK] Файлы правил: {_rule_files_line()}; норма % и °: {NORM_TITLES[RULE_BOOK.norm]}")
     print(f"[OK] Проверено файлов: {len(reports)}")
     print(f"[OK] Найдено audit-случаев: {sum(len(item.findings) for item in reports)}")
     if args.fix:

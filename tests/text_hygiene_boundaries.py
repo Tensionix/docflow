@@ -43,9 +43,70 @@ def test_text_hygiene_does_not_own_audit_dot_cases() -> None:
     assert_true(fix_text(text, fix_dot=True) == text, "fix_text не должен менять audit/морфологические dot-cases")
 
 
+def test_text_hygiene_keeps_numbers_addresses_and_nbsp() -> None:
+    nbsp = chr(0xA0)
+    kept = [
+        f"за последние 5{nbsp}лет, №{nbsp}80 от{nbsp}05.11.2014",
+        "обеспеченностью 0,98 и 0,92",
+        "ЗУ 72:17:1313004:13058, в 10:30, масштаб 1:500",
+        "см. https://example.org и C:" + chr(92) + "Data",
+        "Правда?! Да!",
+        f"слово{nbsp},",
+    ]
+    for text in kept:
+        assert_true(fix_text(text, fix_dot=False) == text, f"fix_text не должен менять: {text!r}")
+        found = classes(scan_find_text_issues("word/document.xml", 1, text, check_dot=False))
+        assert_true("missing_after_punct" not in found and "space_before_punct" not in found,
+                    f"scan не должен находить ошибку в: {text!r}")
+    assert_true(fix_text("текст,а итог:100", fix_dot=False) == "текст, а итог: 100",
+                "после запятой и двоеточия перед словом или числом пробел нужен")
+
+
+def test_dot_spacing_keeps_codes_and_registry_abbreviations() -> None:
+    kept = [
+        "Горелка P61M-PR.S.RU.A.8.32.E.A.",
+        "Горелка P630M-MG.PR.SR.RU.A.8.50.EC",
+        "кг.у.т./Гкал",
+        "расход топлива за 2024 год, т.у.т/год",
+        "составляет 3 077,22 м.п.",
+        "деятельности, у.е.",
+        "e.g. text",
+    ]
+    for text in kept:
+        assert_true(fix_text(text, fix_dot=True) == text, f"fix_text не должен менять: {text!r}")
+        found = classes(scan_find_text_issues("word/document.xml", 1, text, check_dot=True))
+        assert_true("missing_after_dot" not in found, f"scan не должен находить пробел после точки в: {text!r}")
+    assert_true(fix_text("т.е.", fix_dot=True) == "т. е.", "составное сокращение вне реестра по-прежнему получает пробел")
+    assert_true(fix_text("Итого.Далее", fix_dot=True) == "Итого. Далее", "пробел после точки перед словом по-прежнему нужен")
+
+
+def test_hygiene_keeps_initials_split_numbers_and_quotes() -> None:
+    kept_with_dot = [
+        "имени В.К. Арсеньева",
+        "Ф.И.О.",
+        "директор - Киселев И.И.",
+    ]
+    for text in kept_with_dot:
+        assert_true(fix_text(text, fix_dot=True) == text, f"fix_text не должен менять: {text!r}")
+    assert_true(fix_text("И.И.Иванов", fix_dot=True) == "И.И. Иванов", "пробел ставится только перед фамилией")
+    kept = [
+        ",4 коек на",
+        ",1 тыс. ",
+        "«Музей для всех!», проводят",
+        "бухта Прогулочная, , пляж",
+    ]
+    for text in kept:
+        assert_true(fix_text(text, fix_dot=False) == text, f"fix_text не должен менять: {text!r}")
+    assert_true(fix_text("ул. Первая,6)", fix_dot=False) == "ул. Первая, 6)", "пробел после запятой перед номером дома нужен")
+    assert_true(fix_text("номеров) , центр", fix_dot=False) == "номеров), центр", "пробел перед запятой убирается")
+
+
 def main() -> int:
     test_text_hygiene_owns_mechanical_ranges()
     test_text_hygiene_does_not_own_audit_dot_cases()
+    test_text_hygiene_keeps_numbers_addresses_and_nbsp()
+    test_dot_spacing_keeps_codes_and_registry_abbreviations()
+    test_hygiene_keeps_initials_split_numbers_and_quotes()
     print("[OK] text hygiene boundary tests passed")
     return 0
 

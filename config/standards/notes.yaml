@@ -1,0 +1,310 @@
+# Стандарт оформления: записки.
+# Формат файла - config/standards/standards.md. Значение пишется с основанием через @:
+# "Tahoma @standard". Без @ действует basis стиля. Основания: standard - утверждённый стандарт
+# записок (поля, шрифт, кегль, межстрочный интервал), proposal - предложение до уточнения.
+# Существующие записки источником значений не служили.
+id: notes
+title: Записки
+standard_basis: Стандарт записок
+template: Записка.dotx
+sample: Образец - записка.docx
+lead: 'Поля, шрифт, кегль и межстрочный интервал утверждены стандартом записок. Остальное предложено до уточнения.'
+
+page:
+  basis: proposal
+  size: A4 @standard
+  margins_mm: 20 20 20 15 @standard
+  header_mm: 12.5
+  footer_mm: 12.5
+  page_number: right
+  first_page_number: no
+  rules:
+    - 'Лист A3 | продолжает A4 вправо, поля как у книжного листа | standard'
+    - 'Альбомный A4 | лист повёрнут к переплёту: поле 15 мм снизу | standard'
+
+defaults:
+  font: Tahoma @standard
+  size: 12 @standard
+  line: 1 @standard
+
+numbering:
+  headings:
+    - {format: decimal, text: '%1'}
+    - {format: decimal, text: '%1.%2'}
+    - {format: decimal, text: '%1.%2.%3'}
+    - {format: decimal, text: '%1.%2.%3.%4'}
+  bullet:
+    - {format: bullet, text: '–'}
+  numbered:
+    - {format: decimal, text: '%1)'}
+  lettered:
+    - {format: russianLower, text: '%1)'}
+
+styles:
+  - name: Обычный
+    role: 'базовый стиль: от него наследуют остальные'
+    basis: proposal
+    font: Tahoma @standard
+    size: 12 @standard
+    line: 1 @standard
+    color: auto
+    before: 0
+    after: 0
+    align: left
+
+  - name: Абзац
+    role: 'основной текст'
+    based_on: Обычный
+    basis: proposal
+    align: both
+    first_line: 1.25
+    before: 0
+    after: 6
+
+  - name: Заголовок 1
+    role: 'раздел'
+    based_on: Обычный
+    next: Абзац
+    basis: proposal
+    size: 14
+    bold: yes
+    caps: yes
+    align: left
+    first_line: 1.25
+    before: 0
+    after: 12
+    page_break_before: yes
+    keep_next: yes
+    no_hyphenation: yes
+    outline: 1
+    numbering: headings 1
+    rules:
+      - 'Текст | без точки в конце, не подчёркивать | proposal'
+
+  - name: Заголовок 2
+    role: 'подраздел'
+    based_on: Заголовок 1
+    next: Абзац
+    basis: proposal
+    size: 13
+    caps: no
+    page_break_before: no
+    before: 12
+    after: 6
+    outline: 2
+    numbering: headings 2
+
+  - name: Заголовок 3
+    role: 'пункт'
+    based_on: Заголовок 1
+    next: Абзац
+    basis: proposal
+    size: 12
+    caps: no
+    page_break_before: no
+    before: 12
+    after: 6
+    outline: 3
+    numbering: headings 3
+
+  - name: Заголовок 4
+    role: 'подпункт'
+    based_on: Заголовок 3
+    next: Абзац
+    basis: proposal
+    italic: yes
+    before: 6
+    outline: 4
+    numbering: headings 4
+
+  - name: Заголовок приложения
+    role: 'ПРИЛОЖЕНИЕ 1 и название приложения'
+    based_on: Обычный
+    next: Абзац
+    basis: proposal
+    size: 14
+    bold: yes
+    align: center
+    first_line: 0
+    before: 0
+    after: 12
+    page_break_before: yes
+    keep_next: yes
+    outline: 1
+    rules:
+      - 'Вид | «ПРИЛОЖЕНИЕ 1», с новой строки название с прописной буквы, без точки в конце | proposal'
+
+  - name: Название таблицы
+    role: 'подпись над таблицей'
+    based_on: Обычный
+    next: Абзац
+    basis: proposal
+    align: left
+    first_line: 0
+    before: 6
+    after: 3
+    keep_next: yes
+    rules:
+      - 'Вид | «Таблица 1 – Наименование», без точки в конце | proposal'
+      - 'Нумерация | сквозная по всей записке | proposal'
+
+  - name: Табличный_заголовки
+    role: 'шапка таблицы'
+    based_on: Обычный
+    basis: proposal
+    size: 10 @standard
+    align: center
+    keep_next: yes
+    keep_lines: yes
+    rules:
+      - 'Повтор шапки | на каждой странице | proposal'
+
+  - name: Табличный_центр
+    role: 'числа и короткие значения в ячейках'
+    based_on: Обычный
+    basis: proposal
+    size: 10 @standard
+    align: center
+    rules:
+      - 'Тесная таблица | 9 пт, если таблица не помещается между полями даже при самой узкой раскладке | standard'
+
+  - name: Табличный_слева
+    role: 'текст в ячейках'
+    based_on: Табличный_центр
+    basis: proposal
+    align: left
+
+  - name: Название объекта
+    role: 'подпись рисунка'
+    based_on: Обычный
+    next: Абзац
+    basis: proposal
+    align: center
+    first_line: 0
+    before: 3
+    after: 12
+    keep_lines: yes
+    rules:
+      - 'Вид | «Рисунок 1 – Наименование» под рисунком, без точки в конце | proposal'
+
+  - name: Рисунок
+    role: 'абзац, в котором стоит рисунок'
+    based_on: Обычный
+    next: Название объекта
+    basis: proposal
+    align: center
+    first_line: 0
+    before: 6
+    after: 3
+    keep_next: yes
+
+  - name: Маркированный список
+    role: 'перечисление с тире'
+    based_on: Абзац
+    basis: proposal
+    after: 3
+    numbering: bullet 1
+
+  - name: Нумерованный список
+    role: 'перечисление с цифрами'
+    based_on: Абзац
+    basis: proposal
+    after: 3
+    numbering: numbered 1
+
+  - name: Нумерованный список 2
+    role: 'перечисление с буквами'
+    based_on: Абзац
+    basis: proposal
+    after: 3
+    numbering: lettered 1
+
+  - name: Абзац списка
+    role: 'стиль, который Word сам ставит спискам'
+    based_on: Абзац
+    basis: proposal
+    after: 3
+
+  - name: Заголовок оглавления
+    role: 'СОДЕРЖАНИЕ над оглавлением'
+    based_on: Обычный
+    next: Оглавление 1
+    basis: proposal
+    size: 14
+    bold: yes
+    caps: yes
+    align: center
+    first_line: 0
+    after: 12
+    keep_next: yes
+
+  - name: Оглавление 1
+    role: 'содержание: разделы'
+    based_on: Обычный
+    next: Абзац
+    basis: proposal
+    caps: yes
+    align: left
+    before: 3
+    after: 3
+    tabs: right 17.5 dot
+
+  - name: Оглавление 2
+    role: 'содержание: подразделы'
+    based_on: Оглавление 1
+    basis: proposal
+    caps: no
+    left: 0.5
+
+  - name: Оглавление 3
+    role: 'содержание: пункты'
+    based_on: Оглавление 2
+    basis: proposal
+    left: 1
+
+  - name: Верхний колонтитул
+    role: 'текст вверху страницы'
+    based_on: Обычный
+    basis: proposal
+    size: 10
+    tabs: center 8.75; right 17.5
+
+  - name: Нижний колонтитул
+    role: 'номер страницы'
+    based_on: Обычный
+    basis: proposal
+    size: 10
+    align: right
+    tabs: center 8.75; right 17.5
+
+  - name: Текст сноски
+    role: 'пояснение внизу страницы'
+    based_on: Обычный
+    basis: proposal
+    size: 10
+
+  - name: Знак сноски
+    type: character
+    role: 'номер сноски в тексте'
+    basis: proposal
+    vert_align: superscript
+
+  - name: Гиперссылка
+    type: character
+    role: 'ссылка в тексте'
+    basis: proposal
+    color: 0000FF
+    underline: yes
+
+  - name: Номер страницы
+    type: character
+    role: 'поле номера в колонтитуле'
+    basis: proposal
+
+  - name: Сетка таблицы
+    type: table
+    role: 'линии таблицы'
+    basis: proposal
+    borders: single 0.5
+    rules:
+      - 'После таблицы | пустая строка перед следующим текстом | proposal'

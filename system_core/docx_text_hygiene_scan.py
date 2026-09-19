@@ -39,11 +39,27 @@ from docx_xml_tools import read_zip_map, list_xml_parts, NS, _etree_from_bytes
 from docx import Document
 
 PAT_DOUBLE_SPACE = re.compile(r" {2,}")
-PAT_SPACE_BEFORE_PUNCT = re.compile(r"\s+([,.;:!?])")
-PAT_MISSING_AFTER_PUNCT = re.compile(r"([,;:!?])(?=[^\s\]\)\}\>\"'”’])")
+# Ordinary spaces only: a non-breaking one is set on purpose. A space after a comma, a
+# semicolon or a colon stays: in "Прогулочная, , пляж" the empty item is the author's to remove.
+PAT_SPACE_BEFORE_PUNCT = re.compile(r"(?<![,;:]) +([,.;:!?])")
+# A space goes after , ; : ! ? unless the next character closes something or is
+# punctuation itself ("?!"), or the mark sits between digits: 0,98, 10:30,
+# 72:17:1313004 and 1:500 are numbers, not two words. A colon before / or a
+# backslash belongs to an address or a path.
+# A mark that opens a text node before a digit may continue a number Word cut into
+# two runs ("11" + ",4"), and a closing guillemet closes like a quote.
+PAT_MISSING_AFTER_PUNCT = re.compile(r"([,;:!?])(?=[^\s\]\)\}\>\"'”’»,.;:!?…])(?!(?<=\d[,;:])\d)(?!(?<=^[,;:])\d)(?!(?<=:)[/\\])")
 PAT_MISSING_AFTER_DOT = re.compile(r"(?<!\d)(\.)(?=[A-Za-zА-Яа-яЁё])")  # simple heuristic
 PAT_SOFT_HYPHEN = re.compile("\u00AD")
 DOT_PREFIX_TOKEN_RE = re.compile(r"([A-Za-zА-Яа-яЁё]{1,16})$")
+DOT_SUFFIX_TOKEN_RE = re.compile(r"[A-Za-zА-Яа-яЁё]{1,16}")
+# Compound abbreviations with a spelling of their own - "т у.т.", "кг у.т./Гкал",
+# "м.п.", "у.е." - belong to the abbreviation registry in config/rules/abbreviations.yaml;
+# a space after the dot inside them is not text hygiene's call.
+DOT_SPACING_SKIP_PAIRS = {
+    ("т", "у"), ("кг", "у"), ("г", "у"), ("у", "т"),
+    ("м", "п"), ("п", "м"), ("у", "е"),
+}
 DOT_SPACING_SKIP_TOKENS = {
     "г", "д", "п", "с", "ул", "пер", "пр", "просп", "ш", "наб", "пл", "бул",
     "пос", "дер", "рп", "корп", "стр", "лит", "оф", "кв", "куб", "руб",
@@ -76,10 +92,28 @@ def iter_text_nodes_with_index(files: dict[str, bytes]):
 
 
 def is_missing_after_dot_candidate(text: str, match: re.Match[str]) -> bool:
+    before = text[match.start() - 1] if match.start() else ""
+    after = text[match.end()] if match.end() < len(text) else ""
+    # A dot between Latin letters sits inside a product code or a Latin abbreviation:
+    # "P61M-PR.S.RU.A.8.32.E.A.", "e.g." - a space there breaks it.
+    if before.isascii() and before.isalpha() and after.isascii() and after.isalpha():
+        return False
     token_match = DOT_PREFIX_TOKEN_RE.search(text[: match.start()])
     if not token_match:
         return True
+    # An initial before an initial: "В.К. Арсеньева", "Ф.И.О." - no space between them;
+    # the space goes before the surname only ("И.И. Иванов").
+    if (
+        len(token_match.group(1)) == 1
+        and token_match.group(1).isupper()
+        and re.match(r"[A-ZА-ЯЁ]\.", text[match.end():match.end() + 2])
+    ):
+        return False
     token = token_match.group(1).casefold().replace("ё", "е")
+    next_match = DOT_SUFFIX_TOKEN_RE.match(text, match.end())
+    next_token = next_match.group(0).casefold().replace("ё", "е") if next_match else ""
+    if (token, next_token) in DOT_SPACING_SKIP_PAIRS:
+        return False
     return token not in DOT_SPACING_SKIP_TOKENS
 
 

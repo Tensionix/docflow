@@ -65,7 +65,7 @@ into this deterministic office-helper kit.
   `unified_findings`, target/issue fingerprints, and suppressed exact
   duplicates. Morphology-backed address/toponym validation remains a future
   separate layer.
-- Rules audit workflow for deterministic corporate rules such as `кв. м`, `куб. м`, `№ 1`, percent/degree spacing, date suffixes, table-caption typos, and scan-only `РФ`; it can write `*__annotated.docx` copies with visible audit anchors and later strip those anchors after approval
+- Rules audit: the rules live as files in `config\rules` - units, `%` and `°` (`units.yaml`), the number sign, dates and captions (`house.yaml`), abbreviations (`abbreviations.yaml`), acronyms (`acronyms.yaml`), address fixes (`addresses.yaml`, abbreviations and spaces by the Address Processor engine); the window has one checkbox per file and a percent and degrees norm: `RULES` (`50%`, `5°C`, the default) or `GOST` (`50 %`, `20 °С` with a non-breaking space); every rule carries `fix` and `keep` examples that double as its tests, and a rule that fails them or a new candidate rule only reports; it can write `*__annotated.docx` copies with visible audit anchors and later strip those anchors after approval
 - Similar DOCX detection
 - Exact hash duplicate groups inside the DOCX similarity report
 - Two-DOCX diff without a threshold: by default matches sections by similarity, then compares body text and tables inside matched pairs; document-order comparison remains available; table of contents, media, and package internals are ignored
@@ -220,8 +220,11 @@ Full smoke for the scripted tool set:
 - `config\tool_manifest.yaml` - GUI command tree
 - `config\gui_settings.yaml` - GUI language, theme, and GUI-only settings
 - `config\ui_colors.yaml` - GUI color theme palettes and CSS tokens
-- `config\rules\rules.yaml` - machine-readable project audit rule map
-- `config\rules\rules.md` - split between project-safe rules, residual AI proofreading, and the anchor workflow
+- `config\rules\units.yaml`, `house.yaml`, `abbreviations.yaml`, `acronyms.yaml`, `addresses.yaml` - audit rules by file: a pattern, a replacement, `fix` and `keep` examples
+- `config\rules\rules.yaml` - audit rule map: rule files, the `RULES` and `GOST` norms, residual AI proofreading
+- `config\rules\rules.md` - how rule files work and how to check their examples, the percent and degrees norms, residual AI proofreading, and the anchor workflow
+- `config\standards\notes.yaml`, `nir_gost_7_32.yaml` - formatting standards as data: the page, the corporate style set and the numbering, every value with its basis
+- `config\standards\standards.md` - how a standard file works and how `system_core\docx_standard_build.py` builds the Word template, the sample and the review description from it into `docs\standards`
 - `runtime\` - embedded Python runtime
 - `wheelhouse\` - offline wheels
 - `release\` - packaged release output

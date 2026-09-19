@@ -1,0 +1,359 @@
+# Стандарт оформления: отчёт о НИР по ГОСТ 7.32-2017.
+# Формат файла - config/standards/standards.md. Значение пишется с основанием через @:
+# "12 @gost 6.1.1". Без @ действует basis стиля. Основания: gost <пункты> - ГОСТ 7.32-2017,
+# proposal - предложение до уточнения. Существующие отчёты источником значений не служили.
+id: nir_gost_7_32
+title: Отчёт о НИР
+gost_name: ГОСТ 7.32
+template: Отчёт о НИР (ГОСТ 7.32).dotx
+sample: Образец - отчёт о НИР.docx
+lead: 'Требования ГОСТ 7.32-2017 «Отчёт о научно-исследовательской работе. Структура и правила оформления». Где ГОСТ значения не задаёт, стоит предложение.'
+
+page:
+  basis: proposal
+  size: A4 @gost 6.1.1
+  margins_mm: 20 20 30 15 @gost 6.1.1
+  header_mm: 12.5
+  footer_mm: 12.5
+  page_number: center @gost 6.3.1
+  first_page_number: no @gost 6.3.2
+  rules:
+    - 'Формат A3 | допускается при большом количестве таблиц и иллюстраций этого формата; лист A3 считается одной страницей | gost 6.1.1, 6.3.3'
+    - 'Печать | на одной стороне листа | gost 6.1.1'
+    - 'Нумерация страниц | арабскими цифрами, сквозная, включая приложения, без точки | gost 6.3.1'
+    - 'Альбомный лист | поля как у книжного, лист повёрнут к переплёту | proposal'
+
+defaults:
+  font: Times New Roman @gost 6.1.1
+  size: 12 @gost 6.1.1
+  line: 1 @proposal
+
+numbering:
+  headings:
+    - {format: decimal, text: '%1'}
+    - {format: decimal, text: '%1.%2'}
+    - {format: decimal, text: '%1.%2.%3'}
+  bullet:
+    - {format: bullet, text: '–'}
+  numbered:
+    - {format: decimal, text: '%1)'}
+  lettered:
+    - {format: russianLower, text: '%1)'}
+  sources:
+    - {format: decimal, text: '%1.'}
+
+styles:
+  - name: Обычный
+    role: 'базовый стиль: от него наследуют остальные'
+    basis: proposal
+    font: Times New Roman @gost 6.1.1
+    size: 12 @gost 6.1.1
+    color: auto @gost 6.1.1
+    line: 1
+    before: 0
+    after: 0
+    align: left
+
+  - name: Абзац
+    role: 'основной текст'
+    based_on: Обычный
+    basis: gost 6.1.1
+    line: 1.5
+    first_line: 1.25
+    align: both @proposal
+    before: 0 @proposal
+    after: 0 @proposal
+    rules:
+      - 'Начертание | обычное; полужирный только в заголовках; курсив для латинских терминов и обозначений объектов | gost 6.1.1'
+      - 'Одинарный интервал | допускается в заключительном отчёте от 500 страниц | gost 6.1.1'
+
+  - name: Абзац без отступа
+    role: 'термины, сокращения, ключевые слова реферата'
+    based_on: Абзац
+    basis: gost 6.14, 6.15
+    first_line: 0
+    align: left @proposal
+    rules:
+      - 'Термины и определения | столбцом; слева по алфавиту термин, справа через тире определение; без знаков препинания в конце | gost 6.14'
+      - 'Сокращения и обозначения | столбцом; слева по алфавиту сокращение, справа через тире расшифровка; без знаков препинания в конце | gost 6.15'
+      - 'Ключевые слова реферата | ПРОПИСНЫМИ, в строку через запятые, без переносов, без точки в конце | gost 6.12.2'
+
+  - name: Заголовок структурного элемента
+    role: 'РЕФЕРАТ, СОДЕРЖАНИЕ, ВВЕДЕНИЕ, ЗАКЛЮЧЕНИЕ и другие'
+    based_on: Обычный
+    next: Абзац
+    basis: gost 6.2.1
+    note: 'Заголовки: СПИСОК ИСПОЛНИТЕЛЕЙ, РЕФЕРАТ, СОДЕРЖАНИЕ, ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ, ПЕРЕЧЕНЬ СОКРАЩЕНИЙ И ОБОЗНАЧЕНИЙ, ВВЕДЕНИЕ, ЗАКЛЮЧЕНИЕ, СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ (ГОСТ 7.32, п. 6.2.1).'
+    size: 14 @proposal
+    bold: yes @gost 6.1.1
+    caps: yes
+    align: center
+    first_line: 0
+    before: 0 @proposal
+    after: 12 @proposal
+    page_break_before: yes
+    keep_next: yes @proposal
+    no_hyphenation: yes @gost 6.2.4
+    outline: 1 @proposal
+    rules:
+      - 'Точка в конце, подчёркивание | нет | gost 6.2.1'
+
+  - name: Заголовок 1
+    role: 'раздел'
+    based_on: Обычный
+    next: Абзац
+    basis: gost 6.2.3
+    size: 14 @proposal
+    bold: yes
+    align: left @proposal
+    first_line: 1.25 @gost 6.2.3, 6.4.1
+    before: 0 @proposal
+    after: 12 @proposal
+    page_break_before: yes @gost 6.2.1
+    keep_next: yes @proposal
+    no_hyphenation: yes @gost 6.2.4
+    outline: 1 @proposal
+    numbering: headings 1 @gost 6.4.1
+    rules:
+      - 'Текст | с прописной буквы, без точки в конце, не подчёркивать; несколько предложений разделяют точкой | gost 6.2.3, 6.2.4'
+
+  - name: Заголовок 2
+    role: 'подраздел'
+    based_on: Заголовок 1
+    next: Абзац
+    basis: proposal
+    page_break_before: no
+    before: 12
+    after: 12
+    outline: 2
+    numbering: headings 2 @gost 6.4.1
+
+  - name: Заголовок 3
+    role: 'пункт с заголовком'
+    based_on: Заголовок 1
+    next: Абзац
+    basis: proposal
+    note: 'По ГОСТ у пунктов, как правило, нет заголовков: только номер с абзацного отступа (пп. 6.2.2, 6.2.3). Стиль нужен, если заголовок у пункта всё же есть.'
+    size: 12
+    bold: no @gost 6.1.1
+    page_break_before: no
+    before: 12
+    after: 6
+    outline: 3
+    numbering: headings 3 @gost 6.4.1, 6.4.5
+
+  - name: Заголовок приложения
+    role: 'ПРИЛОЖЕНИЕ А и название приложения'
+    based_on: Обычный
+    next: Абзац
+    basis: gost 6.17.3
+    size: 14 @proposal
+    bold: yes
+    align: center
+    first_line: 0
+    before: 0 @proposal
+    after: 12 @proposal
+    page_break_before: yes
+    keep_next: yes @proposal
+    outline: 1 @proposal
+    rules:
+      - 'Вид | «ПРИЛОЖЕНИЕ А», с новой строки название с прописной буквы, без точки в конце | gost 6.17.3'
+      - 'Буквы | с А, кроме Ё, З, Й, О, Ч, Ъ, Ы, Ь; одно приложение обозначают «ПРИЛОЖЕНИЕ А» | gost 6.17.4'
+      - 'Нумерация внутри | разделы, рисунки, таблицы и формулы с буквой приложения: «А.1» | gost 6.5.5, 6.6.4, 6.8.5, 6.17.6'
+
+  - name: Название таблицы
+    role: 'подпись над таблицей'
+    based_on: Обычный
+    next: Абзац
+    basis: gost 6.6.3
+    align: left
+    first_line: 0
+    line: 1
+    before: 6 @proposal
+    after: 3 @proposal
+    keep_next: yes @proposal
+    rules:
+      - 'Вид | «Таблица 1 – Наименование»: слово, номер, тире, наименование с прописной буквы, без точки в конце | gost 6.6.3'
+      - 'Нумерация | сквозная: «Таблица 1»; в приложении «Таблица А.1»; в большом отчёте можно по разделам: «Таблица 2.3» | gost 6.6.4'
+      - 'Продолжение | над следующими частями слева «Продолжение таблицы 1», наименование не повторяют | gost 6.6.3'
+
+  - name: Табличный_заголовки
+    role: 'шапка таблицы'
+    based_on: Обычный
+    basis: proposal
+    size: 11
+    align: center @gost 6.6.6
+    keep_next: yes
+    keep_lines: yes
+    rules:
+      - 'Текст | с прописной буквы; подзаголовок со строчной, если продолжает заголовок; без точки в конце; в единственном числе | gost 6.6.5'
+      - 'Начертание | обычное: полужирный только в заголовках | gost 6.1.1'
+      - 'Повтор шапки | на каждой странице | proposal'
+
+  - name: Табличный_центр
+    role: 'числа и короткие значения в ячейках'
+    based_on: Обычный
+    basis: proposal
+    size: 11
+    align: center
+    rules:
+      - 'Кегль | разрешён меньше, чем в тексте; в тесной таблице 10 пт | gost 6.6.7'
+
+  - name: Табличный_слева
+    role: 'текст и заголовки строк в ячейках'
+    based_on: Табличный_центр
+    basis: gost 6.6.6
+    align: left
+
+  - name: Название объекта
+    role: 'подпись рисунка'
+    based_on: Обычный
+    next: Абзац
+    basis: gost 6.5.7
+    align: center
+    first_line: 0
+    line: 1 @gost 6.5.8
+    before: 6 @proposal
+    after: 12 @proposal
+    keep_lines: yes @proposal
+    no_hyphenation: yes @gost 6.5.8
+    rules:
+      - 'Вид | «Рисунок 1 – Наименование»: слово, номер, тире, наименование с прописной буквы, без точки в конце; под рисунком после пояснительных данных | gost 6.5.7, 6.5.8'
+      - 'Нумерация | сквозная: «Рисунок 1»; в приложении «Рисунок А.3»; можно по разделам: «Рисунок 2.1» | gost 6.5.4, 6.5.5, 6.5.6'
+
+  - name: Рисунок
+    role: 'абзац, в котором стоит рисунок'
+    based_on: Обычный
+    next: Название объекта
+    basis: proposal
+    align: center
+    first_line: 0
+    before: 12
+    after: 6
+    keep_next: yes
+    rules:
+      - 'Место | сразу после текста, где на рисунок сослались впервые, или на следующей странице | gost 6.5.1'
+
+  - name: Формула
+    role: 'формула с номером'
+    based_on: Обычный
+    next: Абзац без отступа
+    basis: gost 6.8.1, 6.8.3
+    first_line: 0
+    before: 18
+    after: 18
+    tabs: center 8.25; right 16.5
+    rules:
+      - 'Как набирать | табуляция, формула, табуляция, номер в круглых скобках: (1); в приложении (В.1) | gost 6.8.3, 6.8.5'
+      - 'Пустая строка | интервал 18 пт до и после формулы равен пустой строке при полуторном интервале | gost 6.8.1'
+      - 'Перенос | после знака =, +, −, × или :, на новой строке знак повторяют | gost 6.8.1'
+      - 'Пояснение | под формулой: первая строка со слова «где» без двоеточия, каждый символ с новой строки | gost 6.8.2'
+
+  - name: Маркированный список
+    role: 'перечисление с тире'
+    based_on: Абзац
+    basis: gost 6.4.6
+    numbering: bullet 1
+    rules:
+      - 'Знак в конце элемента | в простых перечислениях запятая, в сложных точка с запятой | gost 6.4.6'
+
+  - name: Нумерованный список
+    role: 'перечисление с цифрами'
+    based_on: Абзац
+    basis: gost 6.4.6
+    numbering: numbered 1
+
+  - name: Нумерованный список 2
+    role: 'перечисление с буквами'
+    based_on: Абзац
+    basis: gost 6.4.6
+    numbering: lettered 1
+    rules:
+      - 'Буквы | строчные, без ё, з, й, о, ч, ъ, ы, ь; ставят, когда на элемент есть ссылка в тексте | gost 6.4.6'
+
+  - name: Абзац списка
+    role: 'стиль, который Word сам ставит спискам'
+    based_on: Абзац
+    basis: proposal
+
+  - name: Список литературы
+    role: 'список использованных источников'
+    based_on: Абзац
+    basis: gost 6.16
+    numbering: sources 1
+    rules:
+      - 'Порядок | по первому появлению ссылки в тексте; в тексте номер в квадратных скобках: [1] | gost 6.16, 6.9.1'
+
+  - name: Оглавление 1
+    role: 'содержание: структурные элементы и разделы'
+    based_on: Обычный
+    next: Абзац
+    basis: gost 6.13
+    align: left
+    line: 1.5 @proposal
+    tabs: right 16.5 dot
+    rules:
+      - 'Приложения в содержании | с обозначением, статусом и наименованием | gost 6.17.7'
+
+  - name: Оглавление 2
+    role: 'содержание: подразделы'
+    based_on: Оглавление 1
+    basis: proposal
+    left: 0.5
+
+  - name: Оглавление 3
+    role: 'содержание: пункты с заголовками'
+    based_on: Оглавление 1
+    basis: proposal
+    left: 1
+
+  - name: Верхний колонтитул
+    role: 'текст вверху страницы'
+    based_on: Обычный
+    basis: proposal
+    tabs: center 8.25; right 16.5
+
+  - name: Нижний колонтитул
+    role: 'номер страницы'
+    based_on: Обычный
+    basis: gost 6.3.1
+    align: center
+    tabs: center 8.25; right 16.5 @proposal
+
+  - name: Текст сноски
+    role: 'пояснение внизу страницы'
+    based_on: Обычный
+    basis: gost 6.7.4
+    size: 10 @proposal
+    first_line: 1.25
+    rules:
+      - 'Место | внизу страницы, отделяется короткой тонкой линией слева | gost 6.7.4'
+
+  - name: Знак сноски
+    type: character
+    role: 'номер сноски в тексте'
+    basis: gost 6.7.4
+    vert_align: superscript
+    rules:
+      - 'Вид | арабская цифра без пробела после слова; можно «*» | gost 6.7.4'
+
+  - name: Гиперссылка
+    type: character
+    role: 'ссылка в тексте'
+    basis: proposal
+    color: auto @gost 6.1.1
+    underline: no
+
+  - name: Номер страницы
+    type: character
+    role: 'поле номера в колонтитуле'
+    basis: proposal
+
+  - name: Сетка таблицы
+    type: table
+    role: 'линии таблицы'
+    basis: gost 6.6.6
+    borders: single 0.5 @proposal
+    rules:
+      - 'Линии | таблица ограничена линиями слева, справа, сверху и снизу; диагональные линии в шапке запрещены | gost 6.6.6'
+      - 'После таблицы | пустая строка перед следующим текстом | proposal'

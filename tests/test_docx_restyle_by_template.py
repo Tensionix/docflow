@@ -150,6 +150,19 @@ class CleanupTests(unittest.TestCase):
         self.assertTrue((out / "doc.docx").is_file())
         self.assertFalse((out / "Эталон.docx").exists())
 
+    def test_formula_legend_stays_its_own_paragraph(self) -> None:
+        source = self.tmp / "legend" / "doc.docx"
+        build_docx(source, ["Q = a * L", "где a – эмпирический коэффициент", "Текст без точки", "продолжение абзаца."])
+        out = self.tmp / "legend_out"
+        report = self.tmp / "legend.md"
+        result = run_script(SCRIPT, "--input", str(source.parent), "--outdir", str(out),
+                            "--report", str(report), "--clean-only")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("склеено разорванных абзацев: 1", report.read_text(encoding="utf-8"))
+        with zipfile.ZipFile(out / "doc.docx") as z:
+            body = z.read("word/document.xml").decode("utf-8")
+        self.assertEqual(body.count("<w:p>") + body.count("<w:p "), 3)
+
     def test_a_missing_reference_stops_before_writing(self) -> None:
         out = self.tmp / "out"
         result = run_script(
@@ -248,6 +261,29 @@ class ServiceWiringTests(unittest.TestCase):
 
         with self.assertRaises(FileNotFoundError):
             self.call("docx_style_fix", style_config="missing.json")
+
+
+class StrictOpenXmlTests(unittest.TestCase):
+    def test_strict_document_is_skipped_not_failed(self) -> None:
+        import shutil
+        import tempfile
+
+        tmp = Path(tempfile.mkdtemp(prefix="restyle_strict_"))
+        self.addCleanup(shutil.rmtree, tmp, True)
+        source = tmp / "input"
+        source.mkdir()
+        with zipfile.ZipFile(source / "strict.docx", "w") as archive:
+            archive.writestr("word/document.xml", '<w:document xmlns:w="http://purl.oclc.org/ooxml/wordprocessingml/main"/>')
+        report = tmp / "report.md"
+        result = subprocess.run(
+            [str(PYTHON), str(ROOT / "system_core" / "docx_restyle_by_template.py"), "--input", str(source),
+             "--outdir", str(tmp / "out"), "--report", str(report), "--clean-only"],
+            capture_output=True, text=True, encoding="utf-8",
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        text = report.read_text(encoding="utf-8")
+        self.assertIn("**Пропущен:**", text)
+        self.assertIn("Strict Open XML", text)
 
 
 if __name__ == "__main__":

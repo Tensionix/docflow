@@ -1,0 +1,131 @@
+# Правила аудита DOCX: правила проекта - знак номера, даты, подписи таблиц и рисунков.
+# Как устроено правило и как проверить примеры - config/rules/rules.md, раздел «Файлы правил».
+version: 1
+set: house
+title_ru: "Правила проекта: №, даты, подписи"
+title_en: "House rules: number sign, dates, captions"
+
+rules:
+  - code: AUDIT-NUMBER-SIGN
+    status: implemented
+    action: fix
+    severity: minor
+    title_ru: "Пробел после знака номера"
+    title_en: "Space after the number sign"
+    description_ru: "№1 -> № 1. Неразрывный пробел после № уже правильный и остаётся."
+    sources:
+      - "Грамота.ру, вопрос 235931: пробел нужен - знак номера отбивается - https://gramota.ru/spravka/vopros/235931"
+    match: '№{SP}*(?P<num>\d+)'
+    replace: '№ {num}'
+    fix:
+      "№1": "№ 1"
+      "№  12": "№ 12"
+      "№1-ФЗ": "№ 1-ФЗ"
+    keep:
+      - "№ 1"
+      - "№\u00A080"
+
+  - code: AUDIT-DATE-YEAR-SUFFIX
+    status: implemented
+    action: fix
+    severity: minor
+    title_ru: "Дата без суффикса г."
+    title_en: "Full date without г."
+    description_ru: "20.12.2012 г. № 5 -> 20.12.2012 № 5. Перед заглавной буквой и в конце текста «г.» остаётся: его точка может закрывать предложение (см. AUDIT-DATE-YEAR-SUFFIX-END)."
+    sources:
+      - "Норма проекта - мастер правил аудита (Google AI Studio/00_AUDIT_RULES_MASTER.md): полная дата без «г.»"
+    match: '(?P<date>\b\d{1,2}\.\d{1,2}\.\d{4}){SP}*г\.(?={SP}*[^\sА-ЯЁA-Z])'
+    replace: '{date}'
+    fix:
+      "от 20.12.2012 г. № 5": "от 20.12.2012 № 5"
+      "20.12.2012г., в котором": "20.12.2012, в котором"
+    keep:
+      - "от 20.12.2012 № 5"
+      - "Решение от 20.12.2012 г. Далее"
+      - "от 20.12.2012 г."
+
+  - code: AUDIT-DATE-YEAR-SUFFIX-END
+    status: candidate
+    action: suggest
+    severity: minor
+    title_ru: "Дата с «г.» в конце фразы"
+    title_en: "Full date with г. at the end of a phrase"
+    description_ru: "Перед заглавной буквой или в конце текста точка «г.» может закрывать предложение: снять «г.» и сохранить точку, если она нужна."
+    sources:
+      - "Норма проекта - мастер правил аудита (Google AI Studio/00_AUDIT_RULES_MASTER.md): полная дата без «г.»"
+    match: '(?P<date>\b\d{1,2}\.\d{1,2}\.\d{4}){SP}*г\.(?={SP}*(?:$|[А-ЯЁA-Z]))'
+    replace: '{date}'
+    fix:
+      "от 20.12.2012 г.": "от 20.12.2012"
+    keep:
+      - "от 20.12.2012 г. № 5"
+
+  - code: AUDIT-CAPTION-TABLE-TYPO
+    status: implemented
+    action: fix
+    severity: major
+    title_ru: "Опечатки в названии таблицы"
+    title_en: "Typos in a table caption"
+    description_ru: "Таблрица 1, Таблрица. 1, Таблица. 1 -> Таблица 1."
+    sources:
+      - "ГОСТ 7.32-2017 - data/ГОСТ-7_32-2017.docx, п. 6.6.3: наименование над таблицей в формате «Таблица Номер таблицы - Наименование таблицы», с прописной буквы, без точки в конце"
+    ignore_case: true
+    match: '\b(?:Таблрица\.?|Таблица\.){SP}*(?P<num>\d+)'
+    replace: 'Таблица {num}'
+    fix:
+      "Таблрица. 3": "Таблица 3"
+      "Таблрица 3": "Таблица 3"
+      "Таблица. 3": "Таблица 3"
+      "Таблица.\u00A03": "Таблица\u00A03"
+    keep:
+      - "Таблица 3"
+      - "в таблице 3"
+
+  - code: AUDIT-CAPTION-FIGURE-TYPO
+    status: candidate
+    action: suggest
+    severity: major
+    title_ru: "Опечатки в названии рисунка"
+    title_en: "Typos in a figure caption"
+    description_ru: "Рисунок. 1, Риснунок 1 -> Рисунок 1. Список опечаток пополняется по реальным документам."
+    sources:
+      - "ГОСТ 7.32-2017 - data/ГОСТ-7_32-2017.docx, пп. 6.5.4 и 6.5.7: «Рисунок 1 - Схема прибора», под рисунком по центру, без точки в конце"
+    ignore_case: true
+    match: '\b(?:Риснунок\.?|Рисунок\.){SP}*(?P<num>\d+)'
+    replace: 'Рисунок {num}'
+    fix:
+      "Рисунок. 1": "Рисунок 1"
+      "Риснунок 1": "Рисунок 1"
+    keep:
+      - "Рисунок 1"
+      - "на рисунке 1"
+
+  # Инициалы. Формально пробел ставят и между инициалами, и перед фамилией, но обязательной
+  # нормы нет; корпоративная норма - слитно. В норме ГОСТ этого правила нет: инициалы не трогаются.
+  - code: AUDIT-INITIALS-JOINED
+    norms: [rules]
+    status: candidate
+    action: suggest
+    severity: minor
+    title_ru: "Инициалы слитно: И.И. Иванов"
+    title_en: "Initials written together"
+    description_ru: "Корпоративная норма: между инициалами пробела нет, перед фамилией есть. И. И. Иванов -> И.И. Иванов, Иванов И. И. -> Иванов И.И."
+    sources:
+      - "Норма проекта - корпоративные правила: инициалы слитно, пробел только перед фамилией"
+      - "Грамота.ру, Письмовник «Как писать инициалы имени и отчества»: ни в одном ГОСТе или справочнике нет однозначного указания о пробеле между инициалами; сама Грамота советует пробел - https://gramota.ru/biblioteka/spravochniki/pismovnik/kak-pisat-initsialy-imeni-i-otchestva"
+    cases:
+      - match: '(?<![А-Яа-яЁёA-Za-z.])(?P<first>[А-ЯЁ])\.{SP}+(?P<second>[А-ЯЁ])\.(?={SP}*[А-ЯЁ][а-яё])'
+        replace: '{first}.{second}.'
+      - match: '(?<=[а-яё]{SP})(?P<first>[А-ЯЁ])\.{SP}+(?P<second>[А-ЯЁ])\.(?![А-Яа-яЁё])(?!{SP}*[А-ЯЁ]\.)'
+        replace: '{first}.{second}.'
+    fix:
+      "И. И. Иванов": "И.И. Иванов"
+      "И.\u00A0И.\u00A0Иванов": "И.И.\u00A0Иванов"
+      "директор - Киселев И. И.": "директор - Киселев И.И."
+      "поэт А. С. Пушкин": "поэт А.С. Пушкин"
+    keep:
+      - "И.И. Иванов"
+      - "Иванов И.И."
+      - "Ф. И. О."
+      - "т. е. далее"
+      - "И. Иванов"
